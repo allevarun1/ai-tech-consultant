@@ -6,10 +6,11 @@ import hmac
 import logging
 import time
 import uuid
+from pathlib import Path
 from typing import Optional
 
 from fastapi import BackgroundTasks, Depends, FastAPI, Header, HTTPException, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 
 from ingestion.pipeline import run_ingestion
 
@@ -49,6 +50,10 @@ def create_app(settings: Optional[Settings] = None, store: Optional[Store] = Non
         resp.headers["x-request-id"] = rid
         resp.headers["x-latency-ms"] = f"{(time.perf_counter() - t0) * 1000:.0f}"
         return resp
+
+    @app.get("/", include_in_schema=False)
+    def chat_ui() -> FileResponse:
+        return FileResponse(Path(__file__).parent / "static" / "index.html")
 
     @app.get("/health", response_model=Health)
     def health() -> Health:

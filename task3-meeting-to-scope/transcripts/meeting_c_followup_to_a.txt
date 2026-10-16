@@ -1,0 +1,19 @@
+Title: Meeting C - Follow-up to Meeting A (change requests)
+Date: 2026-10-19
+Participants: Dana Whitlock (Client, Harbor City Business Directory); Priya Raman (Consultant, Northwind Web Studio)
+Provenance: ROLE-PLAYED script written for the capstone. Not a recording of a real client. Replace with a consented recording before any real use.
+
+[00:00:06] Priya: Thanks for coming back, Dana. You've had a chance to read the scope we sent. What did you decide?
+[00:00:15] Dana: We talked internally. We don't need the AI recommendations anymore, so scrap that.
+[00:00:32] Priya: Understood, AI recommendations are removed from the scope. Anything else?
+[00:00:40] Dana: Yes. We do want saved searches with email alerts, so visitors get notified when a new business matches.
+[00:01:08] Priya: Saved searches with email alerts is a new item. I'll estimate it separately.
+[00:01:20] Dana: On the category filter, actually make that multi-select instead of one category at a time.
+[00:01:44] Priya: Multi-select category filter, got it.
+[00:02:05] Dana: For mobile, we now also want click-to-call buttons on every result, because most phone visitors want to ring the business.
+[00:02:30] Priya: Click-to-call on results, understood. That is in addition to the mobile improvements we discussed.
+[00:02:48] Dana: Could you also redesign our homepage while you are at it? It looks dated.
+[00:03:10] Priya: A homepage redesign is outside what we scoped. I'll flag it for a separate quotation.
+[00:03:30] Dana: Fine. Last thing, can we push the launch to the end of April? Our board wants to see a demo first.
+[00:03:50] Priya: End of April, noted. I'll re-check the schedule against the revised estimate.
+[00:04:10] Dana: Thanks. I'll send the analytics export tomorrow.

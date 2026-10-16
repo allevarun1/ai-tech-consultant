@@ -1,28 +1,28 @@
 {
   "corpus": {
-    "pages": 80,
-    "chunks": 470,
+    "pages": 1537,
+    "chunks": 10692,
     "open_escalations": 4
   },
   "cases": 32,
   "escalation_regressions_available": true,
   "retrieval": {
     "vector": {
-      "hit@5": 1.0,
-      "mrr": 0.955,
-      "median_ms": 3.41,
+      "hit@5": 0.962,
+      "mrr": 0.822,
+      "median_ms": 194.11,
       "n": 26
     },
     "keyword": {
       "hit@5": 1.0,
-      "mrr": 0.981,
-      "median_ms": 3.36,
+      "mrr": 0.83,
+      "median_ms": 194.13,
       "n": 26
     },
     "hybrid": {
       "hit@5": 1.0,
-      "mrr": 0.962,
-      "median_ms": 3.54,
+      "mrr": 0.881,
+      "median_ms": 193.82,
       "n": 26
     }
   },
@@ -30,10 +30,10 @@
     {
       "model": "offline-extractive",
       "cases": 32,
-      "pass_rate": 0.875,
+      "pass_rate": 0.781,
       "error_rate": 0.0,
-      "latency_median_ms": 4.2,
-      "latency_p95_ms": 5.5,
+      "latency_median_ms": 199.0,
+      "latency_p95_ms": 210.4,
       "cost_note": "tokens recorded by provider; add evaluation/pricing.json to compute cost"
     }
   ]

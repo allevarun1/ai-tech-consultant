@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Knowledge Chat</title>
+<style>
+  :root { --bg:#f6f7f9; --card:#fff; --ink:#1b2430; --mute:#5b6675; --line:#dfe3e8; --acc:#2456d6; --ok:#117a45; --warn:#9a6700; --bad:#b42318; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#12161c; --card:#1b212a; --ink:#e8ecf1; --mute:#9aa6b5; --line:#2b3441; --acc:#7aa2ff; --ok:#4cc38a; --warn:#e3b341; --bad:#ff7b72; } }
+  * { box-sizing:border-box; } body { margin:0; font:15px/1.5 system-ui,Segoe UI,Roboto,sans-serif; background:var(--bg); color:var(--ink); }
+  nav { display:flex; gap:16px; align-items:center; padding:10px 16px; border-bottom:1px solid var(--line); background:var(--card); flex-wrap:wrap; } nav a { color:var(--mute); text-decoration:none; } nav a.on { color:var(--acc); font-weight:600; } nav .sp { flex:1; }
+  main { max-width:900px; margin:0 auto; padding:16px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:14px; margin-bottom:12px; }
+  h2 { font-size:15px; margin:0 0 8px; } h3 { font-size:13px; margin:12px 0 4px; color:var(--mute); text-transform:uppercase; letter-spacing:.04em; }
+  textarea,input { width:100%; font:inherit; color:inherit; background:var(--bg); border:1px solid var(--line); border-radius:8px; padding:8px; margin-bottom:6px; }
+  button { font:inherit; padding:7px 14px; border-radius:8px; border:1px solid var(--line); background:var(--card); color:var(--ink); cursor:pointer; } button.p { background:var(--acc); border-color:var(--acc); color:#fff; } button:disabled { opacity:.5; }
+  .banner { padding:10px 12px; border-radius:8px; margin-bottom:10px; border:1px solid var(--warn); color:var(--warn); } .banner.bad { border-color:var(--bad); color:var(--bad); }
+  .mute { color:var(--mute); } .tag { font-size:12px; padding:1px 8px; border-radius:999px; border:1px solid var(--line); color:var(--mute); } a { color:var(--acc); }
+  pre.ans { white-space:pre-wrap; font:inherit; margin:0; } img.shot { max-width:100%; border:1px solid var(--line); border-radius:8px; margin-top:6px; }
+  .cite { border-left:3px solid var(--line); padding-left:10px; margin:8px 0; } .err { color:var(--bad); }
+</style>
+</head>
+<body>
+<nav><strong>Knowledge Chat</strong><a class="on" href="#">Ask</a><a href="http://127.0.0.1:8002/" target="_blank" rel="noopener">Inbox Review</a><a href="http://127.0.0.1:8003/" target="_blank" rel="noopener">Scope Builder</a><span class="sp"></span><span id="sys" class="mute"></span></nav>
+<main>
+  <div class="card"><h2>Ask about the product</h2>
+    <textarea id="q" rows="2" placeholder="e.g. How do I change the default search radius?"></textarea>
+    <button class="p" id="ask">Ask</button> <span class="err" id="err"></span></div>
+  <div id="out"></div>
+  <div class="card"><h2>Expert queue (unanswered questions)</h2><div id="esc" class="mute">Loading…</div></div>
+</main>
+<script>
+const $ = (id) => document.getElementById(id);
+function h(tag, attrs = {}, ...kids) { const e = document.createElement(tag); for (const [k, v] of Object.entries(attrs)) { if (k === "class") e.className = v; else if (k.startsWith("on")) e.addEventListener(k.slice(2), v); else if (v !== null && v !== undefined && v !== false) e.setAttribute(k, v); } for (const k of kids.flat()) if (k !== null && k !== undefined && k !== false) e.append(k.nodeType ? k : document.createTextNode(String(k))); return e; }
+async function api(path, body) { const r = await fetch(path, body ? { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) } : undefined); const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.detail ? JSON.stringify(j.detail) : "HTTP " + r.status); return j; }
+const safeUrl = (u) => (/^https?:\/\//.test(u) ? u : null);
+async function ask() {
+  $("err").textContent = ""; const out = $("out"); out.replaceChildren(h("div", { class: "card mute" }, "Searching…")); $("ask").disabled = true;
+  try {
+    const r = await api("/query", { question: $("q").value });
+    out.replaceChildren();
+    if (r.status === "insufficient_evidence") {
+      out.append(h("div", { class: "banner" }, "I can't answer this from the documentation. " + (r.escalation_id ? "A task for a human expert was created (#" + r.escalation_id + ")." : ""), h("div", { class: "mute" }, "Reason: " + r.reason)));
+    } else {
+      out.append(h("div", { class: "card" }, h("h2", {}, "Answer"), h("pre", { class: "ans" }, r.answer), h("div", { class: "mute", style: "margin-top:6px" }, "answered by " + r.answered_by + " | retrieval score " + r.evidence_score + " (a ranking signal, not a probability)")));
+    }
+    if (r.citations.length) out.append(h("div", { class: "card" }, h("h2", {}, r.status === "answered" ? "Sources" : "Closest articles (not enough to answer)"), r.citations.map((c) => h("div", { class: "cite" }, safeUrl(c.url) ? h("a", { href: c.url, target: "_blank", rel: "noopener noreferrer" }, c.title) : h("b", {}, c.title), h("span", { class: "mute" }, " › " + c.section + "  (score " + c.score + ")"), h("div", { class: "mute" }, c.excerpt)))));
+    if (r.images.length) out.append(h("div", { class: "card" }, h("h2", {}, "Screenshots from the cited articles"), r.images.map((i) => h("div", {}, safeUrl(i.url) ? h("img", { class: "shot", src: i.url, alt: i.description || "screenshot", loading: "lazy", referrerpolicy: "no-referrer" }) : null, h("div", { class: "mute" }, (i.description || "no description") + (i.uncertain ? "  (unverified description)" : ""))))));
+    loadEsc();
+  } catch (e) { out.replaceChildren(h("div", { class: "banner bad" }, "Knowledge service error: " + e.message)); } finally { $("ask").disabled = false; }
+}
+async function loadEsc() {
+  try {
+    const list = await api("/escalations?status=open"); const box = $("esc"); box.replaceChildren();
+    if (!list.length) return void box.append("No open questions.");
+    for (const e of list.slice(0, 8)) {
+      const a = h("textarea", { rows: "2", placeholder: "Expert answer" }); const who = h("input", { placeholder: "Your name" }); const approve = h("input", { type: "checkbox" }); const msg = h("span", { class: "mute" });
+      box.append(h("div", { class: "cite" }, h("b", {}, "#" + e.id + " " + e.question), h("div", { class: "mute" }, e.reason), a, who,
+        h("label", {}, approve, " Approve for retrieval (otherwise saved but not served)"), h("div", {}, h("button", { onclick: async () => { try { await api("/escalations/" + e.id + "/resolve", { answer: a.value, reviewer: who.value, approve_for_retrieval: approve.checked }); loadEsc(); } catch (x) { msg.textContent = x.message; } } }, "Save expert answer"), msg)));
+    }
+  } catch (e) { $("esc").textContent = "Escalations unavailable: " + e.message; }
+}
+$("ask").addEventListener("click", ask);
+$("q").addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); ask(); } });
+(async () => { try { const s = await api("/health"); $("sys").textContent = s.active_pages + " articles | " + s.active_chunks + " chunks | " + s.llm; } catch { $("sys").textContent = "service unreachable"; } loadEsc(); })();
+</script>
+</body>
+</html>

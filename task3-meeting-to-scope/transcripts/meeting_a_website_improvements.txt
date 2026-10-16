@@ -1,0 +1,31 @@
+Title: Meeting A - Website improvements (discovery)
+Date: 2026-10-05
+Participants: Dana Whitlock (Client, Harbor City Business Directory); Priya Raman (Consultant, Northwind Web Studio)
+Provenance: ROLE-PLAYED script written for the capstone. Not a recording of a real client. Replace with a consented recording before any real use.
+
+[00:00:05] Priya: Thanks for making time, Dana. Before we dig in, tell me what prompted this call.
+[00:00:14] Dana: Our directory has about 3,200 business listings and visitors keep telling us they can't find things. Honestly, the search isn't great.
+[00:00:40] Priya: What does "not great" look like for them?
+[00:00:48] Dana: They type "plumber" and get results that are miles away. We want customers to find businesses faster, and we'd like some filters. Maybe add AI as well.
+[00:01:20] Priya: Let's take those one at a time. Which filters do you have in mind?
+[00:01:26] Dana: Category and distance, mostly. We need to filter by category, and by how far away the business is. Everyone asks for that.
+[00:01:50] Priya: Distance filtering may already be a setting on the platform. I'll check what it does by default before we promise anything.
+[00:02:05] Dana: Great. Also, as people type in the search box, we want suggestions to pop up. Like autocomplete.
+[00:02:30] Priya: Autocomplete suggestions, understood. Should they show categories or business names?
+[00:02:38] Dana: Both would be ideal, but business names are the priority.
+[00:03:02] Dana: And we need a map view of the results. People want to see where the businesses are.
+[00:03:25] Priya: Agreed, a map view is a reasonable thing to ask for. What about mobile?
+[00:03:31] Dana: Mobile is a mess. Sixty percent of our traffic is phones and the search page is hard to use there. We want a better mobile experience.
+[00:04:05] Priya: What is hard about it, specifically?
+[00:04:12] Dana: Tiny buttons, and the filters take up the whole screen. I'm not sure what the fix looks like. Maybe you tell me.
+[00:04:50] Dana: One more thing, it would be nice to show each business's star rating in the results list.
+[00:05:15] Priya: On the AI side, what would you expect it to do?
+[00:05:20] Dana: Honestly, something that recommends businesses based on what people searched before. I'm not sure it's worth it though.
+[00:05:50] Priya: Understood. What timeline are you working toward?
+[00:05:54] Dana: We'd like this live by the end of March. Our busy season starts in April.
+[00:06:10] Priya: And is there a budget range?
+[00:06:14] Dana: We haven't set one. We'd rather see the estimate first.
+[00:06:30] Priya: I want to confirm that content is out of scope. You're not asking us to rewrite or migrate the business listings, correct?
+[00:06:36] Dana: Correct, the listings stay as they are.
+[00:06:50] Dana: I can send you our analytics export for the last three months so you can see what people search for.
+[00:07:05] Priya: That would help a lot. I'll write this up as a scope with estimates and send it to you for review.

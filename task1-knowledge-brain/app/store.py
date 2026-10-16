@@ -51,6 +51,9 @@ class Store:
         self._conn = sqlite3.connect(path, check_same_thread=False, isolation_level=None)
         self._conn.row_factory = sqlite3.Row
         self._lock = threading.RLock()
+        self._conn.execute("PRAGMA busy_timeout=15000")
+        if path != ":memory:":
+            self._conn.execute("PRAGMA journal_mode=WAL")  # API reads must not block while an ingestion job writes
         self._conn.executescript(SCHEMA)
 
     @contextmanager

@@ -106,7 +106,10 @@ class LLM:
                 if len(line) < 25 or not s_terms:
                     continue
                 # cap the denominator: a long customer email must not dilute every sentence below the threshold
-                scored.append((len(q_terms & s_terms) / max(min(len(q_terms), 8), 1), pi, li))
+                overlap = len(q_terms & s_terms) / max(min(len(q_terms), 8), 1)
+                # tie-breakers: trust the best-ranked passage, and prefer the opening of a how-to (steps) over side remarks
+                bonus = 0.08 * (1 - pi / 3) + (0.05 if listy.match(line) else 0.0)
+                scored.append((overlap + (bonus if overlap > 0 else 0.0), pi, li))
         scored.sort(key=lambda t: -t[0])
         picks = [t for t in scored[:2] if t[0] >= 0.2]
         if not picks:

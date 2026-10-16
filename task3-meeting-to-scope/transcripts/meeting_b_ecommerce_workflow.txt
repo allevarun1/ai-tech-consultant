@@ -1,0 +1,27 @@
+Title: Meeting B - E-commerce workflow (discovery)
+Date: 2026-10-08
+Participants: Marcus Bell (Client, Bluebird Marketplace); Priya Raman (Consultant, Northwind Web Studio)
+Provenance: ROLE-PLAYED script written for the capstone. Not a recording of a real client. Replace with a consented recording before any real use.
+
+[00:00:04] Priya: Marcus, thanks for joining. Tell me about the workflow you want to change.
+[00:00:12] Marcus: We sell memberships and lead packages through our directory. The checkout is clunky. Customers drop out before they pay.
+[00:00:35] Priya: Where do they drop out?
+[00:00:41] Marcus: On the signup step. We need a simpler checkout, ideally one page. We want guest checkout for lead packages too.
+[00:01:10] Priya: Guest checkout and a one-page flow, noted. Anything else on checkout?
+[00:01:16] Marcus: No, that's it for checkout.
+[00:01:30] Marcus: We also need order notifications. When someone buys, our sales team should get an email, and the customer should get a text message.
+[00:02:02] Priya: Email for the sales team and SMS for the customer. Do you already have an SMS provider?
+[00:02:10] Marcus: No. I'm not sure which one we would use. Maybe you recommend one.
+[00:02:40] Marcus: The big one is payments. We want to accept card payments through Stripe. Right now we use another gateway and the fees are too high.
+[00:03:08] Priya: Does your current plan support Stripe, or would that need development? I'll need to check what the platform supports.
+[00:03:20] Marcus: I don't know. That's why I'm asking you.
+[00:03:44] Marcus: Members should be able to upgrade or downgrade their own plan without emailing us.
+[00:04:05] Priya: Self-service plan changes, understood. Do you need that on day one?
+[00:04:11] Marcus: It would be nice to have, but checkout and payments come first.
+[00:04:40] Marcus: And finance wants downloadable invoices for every payment.
+[00:04:58] Priya: Noted. And refunds, will your team issue those manually?
+[00:05:03] Marcus: Yes, finance handles refunds by hand. We don't need anything automated there.
+[00:05:30] Priya: Timeline?
+[00:05:34] Marcus: We need this before the 15th of December. Our holiday promotion starts then.
+[00:05:55] Priya: Understood. I can't promise that date until I see the payment provider answer. I'll come back with a scope and estimate.
+[00:06:15] Marcus: I can give you access to our current payment account so you can look at the setup.

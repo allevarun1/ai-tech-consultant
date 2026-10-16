@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Scope Builder</title>
+<style>
+  :root { --bg:#f6f7f9; --card:#fff; --ink:#1b2430; --mute:#5b6675; --line:#dfe3e8; --acc:#2456d6; --ok:#117a45; --warn:#9a6700; --bad:#b42318; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#12161c; --card:#1b212a; --ink:#e8ecf1; --mute:#9aa6b5; --line:#2b3441; --acc:#7aa2ff; --ok:#4cc38a; --warn:#e3b341; --bad:#ff7b72; } }
+  * { box-sizing:border-box; } body { margin:0; font:15px/1.5 system-ui,Segoe UI,Roboto,sans-serif; background:var(--bg); color:var(--ink); }
+  nav { display:flex; gap:16px; align-items:center; padding:10px 16px; border-bottom:1px solid var(--line); background:var(--card); flex-wrap:wrap; }
+  nav a { color:var(--mute); text-decoration:none; } nav a.on { color:var(--acc); font-weight:600; } nav .sp { flex:1; }
+  main { display:grid; grid-template-columns:minmax(280px,360px) 1fr; gap:16px; padding:16px; max-width:1400px; margin:0 auto; } @media (max-width:900px) { main { grid-template-columns:1fr; } }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:14px; margin-bottom:12px; overflow-x:auto; }
+  h2 { font-size:15px; margin:0 0 8px; } h3 { font-size:13px; margin:12px 0 4px; color:var(--mute); text-transform:uppercase; letter-spacing:.04em; }
+  .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  input,select,textarea { width:100%; font:inherit; color:inherit; background:var(--bg); border:1px solid var(--line); border-radius:8px; padding:8px; margin-bottom:6px; }
+  textarea { min-height:160px; resize:vertical; font-size:13px; }
+  button { font:inherit; padding:7px 14px; border-radius:8px; border:1px solid var(--line); background:var(--card); color:var(--ink); cursor:pointer; } button.p { background:var(--acc); border-color:var(--acc); color:#fff; } button:disabled { opacity:.5; cursor:not-allowed; }
+  table { width:100%; border-collapse:collapse; font-size:13px; } td,th { text-align:left; padding:5px 6px; border-bottom:1px solid var(--line); vertical-align:top; } th { color:var(--mute); font-weight:600; }
+  .tag { font-size:12px; padding:1px 8px; border-radius:999px; border:1px solid var(--line); color:var(--mute); white-space:nowrap; }
+  .tag.ok { color:var(--ok); border-color:var(--ok); } .tag.warn { color:var(--warn); border-color:var(--warn); } .tag.bad { color:var(--bad); border-color:var(--bad); }
+  .banner { padding:10px 12px; border-radius:8px; margin-bottom:12px; border:1px solid var(--warn); color:var(--warn); } .banner.bad { border-color:var(--bad); color:var(--bad); } .banner.ok { border-color:var(--ok); color:var(--ok); }
+  pre { white-space:pre-wrap; background:var(--bg); border:1px solid var(--line); border-radius:8px; padding:10px; margin:0; font:13px/1.45 ui-monospace,Consolas,monospace; }
+  .mute { color:var(--mute); } .err { color:var(--bad); min-height:1.2em; } a { color:var(--acc); }
+  .tabs { display:flex; gap:6px; margin-bottom:10px; flex-wrap:wrap; } .tabs button.on { border-color:var(--acc); color:var(--acc); font-weight:600; }
+  del { color:var(--bad); } ins { color:var(--ok); text-decoration:none; }
+</style>
+</head>
+<body>
+<nav><strong>Scope Builder</strong><a href="http://127.0.0.1:8001/" target="_blank" rel="noopener">Knowledge Chat</a><a href="http://127.0.0.1:8002/" target="_blank" rel="noopener">Inbox Review</a><a class="on" href="#">Scope Builder</a><span class="sp"></span><span id="sys" class="mute"></span></nav>
+<main>
+<section>
+  <div class="card"><h2>Project</h2>
+    <select id="proj"></select>
+    <div class="row"><input id="pname" placeholder="New project name" style="flex:1"><input id="pclient" placeholder="Client" style="flex:1"></div>
+    <button id="pnew">Create project</button> <span class="err" id="perr"></span></div>
+  <div class="card"><h2>Add a meeting transcript</h2>
+    <input id="mtitle" placeholder="Meeting title"><div class="row"><input id="mdate" type="date" style="flex:1"><select id="mkind" style="flex:1"><option value="initial">Initial (discovery)</option><option value="follow_up">Follow-up (changes)</option></select></div>
+    <select id="sample"><option value="">Load a sample transcript…</option></select>
+    <textarea id="mtext" placeholder="[00:00:05] Name: text…  (one speaker turn per line; a 'Participants:' header marks who is the client)"></textarea>
+    <button class="p" id="mgo">Analyze</button> <span class="err" id="merr"></span>
+    <div class="mute" style="margin-top:6px">A follow-up is compared with the <b>approved</b> version, so approve the first draft before adding it.</div></div>
+  <div class="card"><h2>Versions</h2><div id="vers" class="mute">Select a project.</div></div>
+</section>
+<section id="detail"><div class="card mute">Analyze a transcript to see requirements, estimates and the proposal.</div></section>
+</main>
+<script>
+const $ = (id) => document.getElementById(id);
+function h(tag, attrs = {}, ...kids) { const e = document.createElement(tag); for (const [k, v] of Object.entries(attrs)) { if (k === "class") e.className = v; else if (k.startsWith("on")) e.addEventListener(k.slice(2), v); else if (v !== null && v !== undefined && v !== false) e.setAttribute(k, v); } for (const k of kids.flat()) if (k !== null && k !== undefined && k !== false) e.append(k.nodeType ? k : document.createTextNode(String(k))); return e; }
+async function api(path, body, method) { const r = await fetch(path, body === undefined ? undefined : { method: method || "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }); const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(typeof j.detail === "string" ? j.detail : JSON.stringify(j.detail || j)); return j; }
+let pid = null, vid = null, tab = "reqs";
+const FEAS = { existing_configuration: ["Existing config", "ok"], existing_with_limitation: ["Existing + gap", "warn"], potential_custom_development: ["Custom (unverified)", "bad"], needs_clarification: ["Needs clarification", "warn"], not_checked: ["Not checked", ""] };
+
+async function loadProjects(sel) { const ps = await api("/projects"); const s = $("proj"); s.replaceChildren(h("option", { value: "" }, "Choose a project…"), ...ps.map((p) => h("option", { value: p.id }, p.name + " - " + p.client))); if (sel) s.value = sel; }
+async function openProject(id) { pid = id ? Number(id) : null; if (!pid) return; const p = await api("/projects/" + pid); const box = $("vers"); box.replaceChildren();
+  for (const v of p.versions) box.append(h("div", { class: "row", style: "margin-bottom:6px" }, h("button", { onclick: () => openVersion(v.id) }, "v" + v.version_no), h("span", { class: "tag " + (v.status === "approved" ? "ok" : v.status === "superseded" ? "" : "warn") }, v.status), v.approved_by ? h("span", { class: "mute" }, "by " + v.approved_by) : null));
+  if (!p.versions.length) box.append(h("div", { class: "mute" }, "No versions yet.")); if (p.versions.length && !vid) openVersion(p.versions[p.versions.length - 1].id); }
+async function openVersion(id) { vid = id; const v = await api("/versions/" + id); render(v); }
+
+function tabs(v) { return h("div", { class: "tabs" }, ...[["reqs", "Requirements"], ["est", "Estimate"], ["scope", "Scope"], ["prop", "Proposal"], ["chg", "Changes"], ["appr", "Approval"]].filter(([k]) => k !== "chg" || v.change).map(([k, l]) => h("button", { class: tab === k ? "on" : "", onclick: () => { tab = k; render(v); } }, l))); }
+function render(v) {
+  const root = $("detail"); root.replaceChildren();
+  root.append(h("div", { class: "banner " + (v.status === "approved" ? "ok" : "") }, v.status === "approved" ? "Version " + v.version_no + " is APPROVED by " + v.approved_by + (v.sent ? " and has been sent (simulated)." : ".") : "Version " + v.version_no + " is a " + v.status.toUpperCase() + ". It cannot be sent until a reviewer approves it."));
+  root.append(tabs(v));
+  const body = h("div", { class: "card" }); root.append(body);
+  if (tab === "reqs") {
+    body.append(h("h2", {}, "Requirements and sources"), h("table", {}, h("tr", {}, ...["ID", "Requirement", "Priority", "Status", "Existing product?", "Source in transcript"].map((x) => h("th", {}, x))),
+      v.requirements.filter((r) => r.intent !== "remove").map((r) => { const f = FEAS[r.existing_solution.category] || ["", ""]; return h("tr", {}, h("td", {}, r.id), h("td", {}, r.description, !r.in_scope ? h("div", {}, h("span", { class: "tag bad" }, "outside baseline - separate quote")) : null),
+        h("td", {}, r.priority), h("td", {}, h("span", { class: "tag " + (r.status === "confirmed" ? "ok" : "warn") }, r.status)),
+        h("td", {}, h("span", { class: "tag " + f[1] }, f[0]), r.existing_solution.evidence.slice(0, 1).map((e) => h("div", {}, h("a", { href: e.url, target: "_blank", rel: "noopener noreferrer" }, e.title))), h("div", { class: "mute" }, r.existing_solution.rationale)),
+        h("td", {}, r.sources.map((s) => h("div", { class: "mute" }, s.ts + " " + s.speaker + ': "' + s.quote + '"')))); })));
+    if (v.representation.warnings.length) body.append(h("h3", {}, "Validation warnings"), ...v.representation.warnings.map((w) => h("div", { class: "mute" }, w)));
+    body.append(h("div", { class: "mute", style: "margin-top:8px" }, "Meeting processed in " + v.representation.chunks_processed + " stage(s)."));
+  } else if (tab === "est") {
+    const e = v.estimate, err = h("div", { class: "err" });
+    body.append(h("h2", {}, "Task estimates (hours)"), h("table", {}, h("tr", {}, ...["Req", "Task", "Low", "Likely", "High", "Why"].map((x) => h("th", {}, x))), e.tasks.map((t) => { const inp = (k) => h("input", { type: "number", step: "0.5", min: "0", value: t[k], style: "width:70px;margin:0", "data-k": k }); const cells = { low: inp("low"), likely: inp("likely"), high: inp("high") };
+      const save = async () => { err.textContent = ""; try { const nv = await api("/versions/" + v.id + "/edit", { reviewer: "estimator", task_hours: { [t.requirement_id + "|" + t.name]: { low: +cells.low.value, likely: +cells.likely.value, high: +cells.high.value } }, note: "manual adjustment" }); render(nv); } catch (x) { err.textContent = x.message; } };
+      for (const c of Object.values(cells)) c.addEventListener("change", save);
+      return h("tr", {}, h("td", {}, t.requirement_id), h("td", {}, t.name), h("td", {}, cells.low), h("td", {}, cells.likely), h("td", {}, cells.high), h("td", { class: "mute" }, t.reasoning + (t.assumptions.length ? " Assumes: " + t.assumptions.join("; ") : ""))); })),
+      err, h("p", {}, h("b", {}, "Total: " + e.total_likely + " h likely (" + e.total_low + "–" + e.total_high + ")"), " + " + e.contingency_hours + " h contingency (" + e.contingency_reason + "). About " + e.weeks_at_capacity + " week(s) at " + e.capacity_hours_per_week + " h/week."),
+      h("div", { class: "mute" }, "Indicative price " + e.pricing.currency + " " + e.pricing.indicative_net + " at " + e.pricing.hourly_rate + "/h. " + e.pricing.disclaimer), h("div", { class: "mute" }, "Editing any figure resets approval."));
+  } else if (tab === "scope") {
+    const s = v.scope; const list = (arr) => h("ul", {}, arr.map((x) => h("li", {}, typeof x === "string" ? x : JSON.stringify(x))));
+    body.append(h("h2", {}, "Scope of work"), h("p", {}, s.objective), h("h3", {}, "Current problem"), list(s.current_problem), h("h3", {}, "Agreed requirements"), list(s.agreed_requirements.map((r) => r.id + " " + r.text)),
+      h("h3", {}, "Pending clarification"), list(s.pending_clarification.map((r) => r.id + " " + r.text)), h("h3", {}, "Proposed solution"), list(s.proposed_solution.map((p) => p.id + ": " + p.approach)),
+      h("h3", {}, "Deliverables and how success is verified"), list(s.deliverables.map((d) => d.id + " " + d.deliverable + " - " + d.verified_by)), h("h3", {}, "Exclusions"), list(s.exclusions), h("h3", {}, "Assumptions and dependencies"), list(s.assumptions_and_dependencies),
+      h("h3", {}, "Client responsibilities"), list(s.client_responsibilities), h("h3", {}, "Open questions"), list(s.open_questions_and_risks.questions), h("h3", {}, "Risks"), list(s.open_questions_and_risks.risks));
+  } else if (tab === "prop") {
+    body.append(h("h2", {}, v.proposal.version_label), h("div", { class: "banner" }, v.proposal.status_banner), v.proposal.consistency_issues.length ? h("div", { class: "banner bad" }, "Consistency issues: " + v.proposal.consistency_issues.join(" | ")) : null, h("pre", {}, v.proposal.markdown));
+  } else if (tab === "chg") {
+    const c = v.change; body.append(h("h2", {}, "Changes since the approved baseline"), h("p", {}, c.summary));
+    const sec = (title, rows, fmt) => rows.length ? [h("h3", {}, title), h("ul", {}, rows.map((r) => h("li", {}, fmt(r))))] : [];
+    body.append(...sec("Added", c.added, (a) => a.id + " " + a.text + " - " + (a.likely_hours ?? "?") + " h likely. " + a.note),
+      ...sec("Modified", c.modified, (m) => [m.id + " ", h("del", {}, m.before), " → ", h("ins", {}, m.after), " (" + (m.delta_likely_hours >= 0 ? "+" : "") + m.delta_likely_hours + " h)"]),
+      ...sec("Removed", c.removed, (r) => r.id + " " + r.text + " (frees " + r.hours_freed + " h)"), ...sec("Potentially out of scope", c.potentially_out_of_scope, (o) => o.id + " " + o.text + " - " + o.action),
+      ...sec("Unresolved conflicts", c.unresolved_conflicts, (x) => x.id + ": " + x.reason));
+    if (c.deadline) body.append(h("h3", {}, "Deadline"), h("p", {}, (c.deadline.before || "none") + " → " + c.deadline.after + (c.deadline.client_said ? ' ("' + c.deadline.client_said + '")' : "") + ". " + (c.deadline.schedule_check.feasible_at_likely_hours === false ? "At risk at current capacity." : "Plausible at likely hours (not a commitment).")));
+    body.append(h("h3", {}, "Estimate"), h("p", {}, c.estimate_delta.baseline_likely + " h → " + c.estimate_delta.revised_likely + " h (" + (c.estimate_delta.delta_likely >= 0 ? "+" : "") + c.estimate_delta.delta_likely + " h)"));
+  } else if (tab === "appr") {
+    const who = h("input", { placeholder: "Reviewer name", value: "" }), to = h("input", { placeholder: "Client email to send to", type: "email" }), err = h("div", { class: "err" });
+    body.append(h("h2", {}, "Human approval"), h("div", { class: "mute" }, "Status: " + v.status + (v.approved_at ? " | approved " + v.approved_at + " by " + v.approved_by : "")), who,
+      h("div", { class: "row" }, h("button", { class: "p", onclick: async () => { err.textContent = ""; try { render(await api("/versions/" + v.id + "/approve", { reviewer: who.value })); openProject(pid); } catch (x) { err.textContent = x.message; } } }, "Approve this version")),
+      h("h3", {}, "Send (simulated delivery)"), to, h("button", { disabled: v.status !== "approved", onclick: async () => { err.textContent = ""; try { await api("/versions/" + v.id + "/send", { to: to.value }); openVersion(v.id); } catch (x) { err.textContent = x.message; } } }, "Send to client"), err,
+      v.proposal.consistency_issues.length ? h("div", { class: "banner bad" }, "Resolve consistency issues before sending: " + v.proposal.consistency_issues.join(" | ")) : null);
+  }
+}
+
+$("pnew").addEventListener("click", async () => { $("perr").textContent = ""; try { const p = await api("/projects", { name: $("pname").value, client: $("pclient").value }); await loadProjects(p.id); vid = null; openProject(p.id); } catch (x) { $("perr").textContent = x.message; } });
+$("proj").addEventListener("change", () => { vid = null; $("detail").replaceChildren(h("div", { class: "card mute" }, "Loading…")); openProject($("proj").value); });
+$("sample").addEventListener("change", async () => { const n = $("sample").value; if (!n) return; const t = await (await fetch("/samples/" + n)).text(); $("mtext").value = t; const m = t.match(/^Title:\s*(.+)$/m), d = t.match(/^Date:\s*(\d{4}-\d{2}-\d{2})/m); if (m) $("mtitle").value = m[1]; if (d) $("mdate").value = d[1]; $("mkind").value = /follow-up/i.test(t.slice(0, 120)) ? "follow_up" : "initial"; });
+$("mgo").addEventListener("click", async () => { $("merr").textContent = ""; if (!pid) { $("merr").textContent = "Choose or create a project first."; return; } $("mgo").disabled = true;
+  try { const v = await api("/projects/" + pid + "/meetings", { title: $("mtitle").value, date: $("mdate").value, kind: $("mkind").value, transcript: $("mtext").value }); vid = v.id; tab = "reqs"; await openProject(pid); render(v); } catch (x) { $("merr").textContent = x.message; } finally { $("mgo").disabled = false; } });
+(async () => { try { const s = await api("/health"); $("sys").textContent = "knowledge: " + (s.knowledge.ok ? "ok" : "DOWN") + " | extractor: " + s.llm; } catch { $("sys").textContent = "service unreachable"; }
+  const names = await api("/samples"); $("sample").append(...names.map((n) => h("option", { value: n }, n))); await loadProjects(); })();
+</script>
+</body>
+</html>

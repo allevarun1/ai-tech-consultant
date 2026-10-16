@@ -1,0 +1,25 @@
+{
+  "model": "rules-baseline",
+  "cases": 36,
+  "pass_rate": 1.0,
+  "knowledge_service_up": true,
+  "by_group": {
+    "extraction": "10/10",
+    "extraction_heldout": "6/6",
+    "feasibility": "5/5",
+    "estimation": "4/4",
+    "approval_compliance": "4/4",
+    "change_detection": "6/6",
+    "staged_long_transcript": "1/1"
+  },
+  "latency_ms": {
+    "median": 0.0,
+    "full_initial_meeting": 1204,
+    "full_followup_meeting": 756
+  },
+  "llm_tokens": {
+    "in": 0,
+    "out": 0
+  },
+  "failures": []
+}

@@ -1,0 +1,37 @@
+task,case_id,model,expected,actual,quality,latency_ms,cost,passed,failure_reason
+scope,SC-E01,rules-baseline,"{""search.map_view"": [""must-have"", ""confirmed""]}","{""search.map_view"": [""must-have"", ""confirmed""]}",1,1,,True,
+scope,SC-E02,rules-baseline,"{""search.results_rating"": [""optional"", ""confirmed""]}","{""search.results_rating"": [""optional"", ""confirmed""]}",1,0,,True,
+scope,SC-E03,rules-baseline,"{""mobile.experience"": [""should-have"", ""unclear""]}","{""mobile.experience"": [""should-have"", ""unclear""]}",1,0,,True,
+scope,SC-E04,rules-baseline,{},{},1,0,,True,
+scope,SC-E05,rules-baseline,"{""search.ai_recommendations"": [""optional"", ""unclear""]}","{""search.ai_recommendations"": [""optional"", ""unclear""]}",1,0,,True,
+scope,SC-E06,rules-baseline,"{""search.filters.category"": [""must-have"", ""confirmed""], ""search.filters.distance"": [""must-have"", ""confirmed""]}","{""search.filters.category"": [""must-have"", ""confirmed""], ""search.filters.distance"": [""must-have"", ""confirmed""]}",1,0,,True,
+scope,SC-E07,rules-baseline,"{""checkout.flow"": [""should-have"", ""confirmed""]}","{""checkout.flow"": [""should-have"", ""confirmed""]}",1,0,,True,
+scope,SC-E08,rules-baseline,{},{},1,0,,True,
+scope,SC-E09,rules-baseline,{},{},1,0,,True,
+scope,SC-E10,rules-baseline,"{""payments.integration"": [""must-have"", ""confirmed""]}","{""payments.integration"": [""must-have"", ""confirmed""]}",1,0,,True,
+scope,SC-H01,rules-baseline,"{""search.map_view"": [""should-have"", ""confirmed""]}",{},0,0,,False,extracted set/priority/status differs from reference
+scope,SC-H02,rules-baseline,"{""search.autocomplete"": [""should-have"", ""confirmed""]}",{},0,0,,False,extracted set/priority/status differs from reference
+scope,SC-H03,rules-baseline,"{""payments.integration"": [""must-have"", ""confirmed""]}","{""payments.integration"": [""must-have"", ""confirmed""]}",1,0,,True,
+scope,SC-H04,rules-baseline,"{""search.ai_recommendations"": [""optional"", ""unclear""]}",{},0,0,,False,extracted set/priority/status differs from reference
+scope,SC-H05,rules-baseline,"{""mobile.experience"": [""should-have"", ""unclear""]}",{},0,0,,False,extracted set/priority/status differs from reference
+scope,SC-H06,rules-baseline,"{""billing.invoices"": [""must-have"", ""confirmed""]}",{},0,0,,False,extracted set/priority/status differs from reference
+scope,SC-F01,rules-baseline,existing_configuration,existing_configuration,1,4316,,True,
+scope,SC-F02,rules-baseline,existing_configuration,existing_configuration,1,4249,,True,
+scope,SC-F03,rules-baseline,existing_configuration,existing_configuration,1,4282,,True,
+scope,SC-F04,rules-baseline,needs_clarification,needs_clarification,1,0,,True,
+scope,SC-F05,rules-baseline,potential_custom_development,potential_custom_development,1,4390,,True,
+scope,SC-S01,rules-baseline,"likely in [1,5] h",3 h,1,0,,True,
+scope,SC-S02,rules-baseline,"likely in [6,16] h",9 h,1,0,,True,
+scope,SC-S03,rules-baseline,"likely in [35,70] h",48 h,1,0,,True,
+scope,SC-S04,rules-baseline,"likely in [2,6] h",3 h,1,0,,True,
+scope,SC-P01,rules-baseline,follow-up refused before baseline approval (409),409,1,24980,,True,
+scope,SC-P02,rules-baseline,unapproved send blocked (409),409,1,0,,True,
+scope,SC-C01,rules-baseline,added = saved_alerts + click_to_call,"[""mobile.click_to_call"", ""search.saved_alerts""]",1,14435,,True,
+scope,SC-C02,rules-baseline,removed = ai_recommendations,"[""search.ai_recommendations""]",1,14435,,True,
+scope,SC-C03,rules-baseline,modified = category filter,"[""search.filters.category""]",1,14435,,True,
+scope,SC-C04,rules-baseline,out of scope = homepage redesign,"[""homepage.redesign""]",1,14435,,True,
+scope,SC-C05,rules-baseline,deadline 2027-03-31 -> 2027-04-30,"[""2027-03-31"", ""2027-04-30""]",1,14435,,True,
+scope,SC-C06,rules-baseline,unchanged requirement keeps its REQ id,True,1,14435,,True,
+scope,SC-P03,rules-baseline,editing an approved version resets it to draft,draft,1,0,,True,
+scope,SC-P04,rules-baseline,edited-then-reapproved version sends once (idempotent),"409,False,True",1,0,,True,
+scope,SC-L01,rules-baseline,staged extraction == single-pass topics,10 chunks,1,52,,True,

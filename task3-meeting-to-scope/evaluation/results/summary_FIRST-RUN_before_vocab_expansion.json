@@ -1,0 +1,56 @@
+{
+  "model": "rules-baseline",
+  "cases": 36,
+  "pass_rate": 0.861,
+  "knowledge_service_up": true,
+  "by_group": {
+    "extraction": "10/10",
+    "extraction_heldout": "1/6",
+    "feasibility": "5/5",
+    "estimation": "4/4",
+    "approval_compliance": "4/4",
+    "change_detection": "6/6",
+    "staged_long_transcript": "1/1"
+  },
+  "latency_ms": {
+    "median": 0.0,
+    "full_initial_meeting": 24980,
+    "full_followup_meeting": 14435
+  },
+  "llm_tokens": {
+    "in": 0,
+    "out": 0
+  },
+  "failures": [
+    {
+      "case_id": "SC-H01",
+      "expected": "{\"search.map_view\": [\"should-have\", \"confirmed\"]}",
+      "actual": "{}",
+      "failure_reason": "extracted set/priority/status differs from reference"
+    },
+    {
+      "case_id": "SC-H02",
+      "expected": "{\"search.autocomplete\": [\"should-have\", \"confirmed\"]}",
+      "actual": "{}",
+      "failure_reason": "extracted set/priority/status differs from reference"
+    },
+    {
+      "case_id": "SC-H04",
+      "expected": "{\"search.ai_recommendations\": [\"optional\", \"unclear\"]}",
+      "actual": "{}",
+      "failure_reason": "extracted set/priority/status differs from reference"
+    },
+    {
+      "case_id": "SC-H05",
+      "expected": "{\"mobile.experience\": [\"should-have\", \"unclear\"]}",
+      "actual": "{}",
+      "failure_reason": "extracted set/priority/status differs from reference"
+    },
+    {
+      "case_id": "SC-H06",
+      "expected": "{\"billing.invoices\": [\"must-have\", \"confirmed\"]}",
+      "actual": "{}",
+      "failure_reason": "extracted set/priority/status differs from reference"
+    }
+  ]
+}
