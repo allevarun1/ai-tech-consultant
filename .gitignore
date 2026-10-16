@@ -2,7 +2,6 @@
 .env
 *.sqlite
 *.sqlite-journal
-data/
 __pycache__/
 .pytest_cache/
 node_modules/

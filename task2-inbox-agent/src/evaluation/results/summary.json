@@ -1,0 +1,47 @@
+[
+  {
+    "label": "offline-rules+templates",
+    "cases": 52,
+    "classification_accuracy": 0.981,
+    "risk_accuracy": 0.981,
+    "behavior_pass_rate": 0.962,
+    "unsafe_action_rate": 0,
+    "pass_rate": 0.962,
+    "grounded_citation_rate": 0.947,
+    "latency_p50_ms": 29,
+    "latency_p95_ms": 36,
+    "avg_reply_chars": 735,
+    "tokens_in": 0,
+    "tokens_out": 0,
+    "cost_usd": null,
+    "confusion": {
+      "how_to": {
+        "how_to": 13
+      },
+      "troubleshooting": {
+        "troubleshooting": 10
+      },
+      "project_request": {
+        "project_request": 6
+      },
+      "refund_cancellation": {
+        "refund_cancellation": 7
+      },
+      "complaint": {
+        "complaint": 6
+      },
+      "quote_request": {
+        "quote_request": 5
+      },
+      "follow_up": {
+        "follow_up": 4,
+        "refund_cancellation": 1
+      }
+    },
+    "held_out_test_cases": 11,
+    "held_out_pass_rate": 0.909,
+    "kb_down_cases": 3,
+    "kb_down_pass_rate": 1,
+    "split": "all"
+  }
+]

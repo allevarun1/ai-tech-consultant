@@ -1,0 +1,22 @@
+{
+  "name": "task2-inbox-agent",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Inbox Agent: classify customer emails, draft grounded replies via the Knowledge Brain API, human review, feedback and a guarded autonomy rule.",
+  "engines": { "node": ">=22.18" },
+  "scripts": {
+    "start": "node src/server.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test --no-warnings \"tests/*.test.ts\"",
+    "eval": "node --no-warnings src/evaluation/run-eval.ts"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.65.0",
+    "zod": "^3.25.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "^5.9.0"
+  }
+}

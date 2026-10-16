@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Inbox Review</title>
+<style>
+  :root { --bg:#f6f7f9; --card:#fff; --ink:#1b2430; --mute:#5b6675; --line:#dfe3e8; --acc:#2456d6; --ok:#117a45; --warn:#9a6700; --bad:#b42318; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#12161c; --card:#1b212a; --ink:#e8ecf1; --mute:#9aa6b5; --line:#2b3441; --acc:#7aa2ff; --ok:#4cc38a; --warn:#e3b341; --bad:#ff7b72; } }
+  * { box-sizing: border-box; }
+  body { margin:0; font:15px/1.5 system-ui,Segoe UI,Roboto,sans-serif; background:var(--bg); color:var(--ink); }
+  nav { display:flex; gap:16px; align-items:center; padding:10px 16px; border-bottom:1px solid var(--line); background:var(--card); flex-wrap:wrap; }
+  nav a { color:var(--mute); text-decoration:none; } nav a.on { color:var(--acc); font-weight:600; }
+  nav .sp { flex:1; }
+  main { display:grid; grid-template-columns:minmax(260px,340px) 1fr; gap:16px; padding:16px; max-width:1300px; margin:0 auto; }
+  @media (max-width:800px) { main { grid-template-columns:1fr; } }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:14px; margin-bottom:12px; }
+  h2 { font-size:15px; margin:0 0 8px; } h3 { font-size:13px; margin:12px 0 4px; color:var(--mute); text-transform:uppercase; letter-spacing:.04em; }
+  .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  .item { padding:10px; border:1px solid var(--line); border-radius:8px; margin-bottom:8px; cursor:pointer; background:var(--card); }
+  .item.sel { border-color:var(--acc); } .item small { color:var(--mute); display:block; }
+  .tag { font-size:12px; padding:1px 8px; border-radius:999px; border:1px solid var(--line); color:var(--mute); }
+  .tag.high { color:var(--bad); border-color:var(--bad); } .tag.moderate { color:var(--warn); border-color:var(--warn); } .tag.low,.tag.sent,.tag.auto_sent { color:var(--ok); border-color:var(--ok); }
+  .banner { padding:10px 12px; border-radius:8px; margin-bottom:12px; border:1px solid var(--bad); color:var(--bad); }
+  .banner.info { border-color:var(--warn); color:var(--warn); }
+  pre.email { white-space:pre-wrap; background:var(--bg); border:1px solid var(--line); border-radius:8px; padding:10px; margin:0; font:inherit; }
+  textarea,input[type=text],input[type=email],select { width:100%; font:inherit; color:inherit; background:var(--bg); border:1px solid var(--line); border-radius:8px; padding:8px; }
+  textarea { min-height:220px; resize:vertical; }
+  button { font:inherit; padding:7px 14px; border-radius:8px; border:1px solid var(--line); background:var(--card); color:var(--ink); cursor:pointer; }
+  button.p { background:var(--acc); border-color:var(--acc); color:#fff; } button:disabled { opacity:.5; cursor:not-allowed; }
+  a { color:var(--acc); } .mute { color:var(--mute); } table { width:100%; border-collapse:collapse; font-size:13px; } td,th { text-align:left; padding:4px 6px; border-bottom:1px solid var(--line); }
+  .err { color:var(--bad); min-height:1.2em; }
+</style>
+</head>
+<body>
+<nav>
+  <strong>Inbox Review</strong>
+  <a class="on" href="#">Inbox</a>
+  <a href="http://127.0.0.1:8001/" target="_blank" rel="noopener">Knowledge Chat</a>
+  <a href="http://127.0.0.1:8003/" target="_blank" rel="noopener">Scope Builder</a>
+  <span class="sp"></span><span id="sys" class="mute"></span>
+</nav>
+<main>
+  <section>
+    <div class="card">
+      <h2>New test email</h2>
+      <input type="email" id="nf" placeholder="from@customer.example" style="margin-bottom:6px">
+      <input type="text" id="ns" placeholder="Subject" style="margin-bottom:6px">
+      <textarea id="nb" placeholder="Message" style="min-height:80px"></textarea>
+      <div class="row" style="margin-top:6px"><button class="p" id="nsend">Process email</button><span class="err" id="nerr"></span></div>
+    </div>
+    <div class="row" style="margin-bottom:8px"><select id="flt"><option value="">All</option><option value="pending_review">Pending review</option><option value="needs_expert">Needs expert</option><option value="sent">Sent</option><option value="auto_sent">Auto-sent</option></select></div>
+    <div id="list"></div>
+  </section>
+  <section id="detail"><div class="card mute">Select an email to review its draft.</div></section>
+</main>
+<script>
+const $ = (id) => document.getElementById(id);
+function h(tag, attrs = {}, ...kids) {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) { if (k === "class") e.className = v; else if (k.startsWith("on")) e.addEventListener(k.slice(2), v); else if (v !== null && v !== undefined) e.setAttribute(k, v); }
+  for (const k of kids.flat()) if (k !== null && k !== undefined && k !== false) e.append(k.nodeType ? k : document.createTextNode(String(k)));
+  return e;
+}
+async function api(path, opts) {
+  const r = await fetch(path, opts && { ...opts, headers: { "content-type": "application/json" }, body: JSON.stringify(opts.body) });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error ? j.error + (j.issues ? ": " + j.issues.join("; ") : "") : "HTTP " + r.status);
+  return j;
+}
+let sel = null;
+const tag = (t, cls) => h("span", { class: "tag " + (cls || t) }, t.replace("_", " "));
+
+async function loadList() {
+  const rows = await api("/api/emails" + ($("flt").value ? "?status=" + $("flt").value : ""));
+  const list = $("list"); list.replaceChildren();
+  if (!rows.length) list.append(h("div", { class: "mute" }, "No emails yet."));
+  for (const e of rows) {
+    list.append(h("div", { class: "item" + (e.id === sel ? " sel" : ""), onclick: () => open(e.id) },
+      h("strong", {}, e.subject), h("small", {}, e.from),
+      h("div", { class: "row", style: "margin-top:4px" }, e.classification ? tag(e.classification.category) : null, e.classification ? tag(e.classification.risk) : null, tag(e.status))));
+  }
+}
+
+async function open(id) {
+  sel = id;
+  const v = await api("/api/emails/" + id);
+  const cls = v.email.classification, d = v.draft && v.draft.draft;
+  const root = $("detail"); root.replaceChildren();
+  if (d && d.knowledgeStatus === "unavailable") root.append(h("div", { class: "banner" }, "Knowledge service unavailable: this draft is a holding reply with no product facts. Answer manually."));
+  if (d && d.knowledgeStatus === "insufficient_evidence") root.append(h("div", { class: "banner info" }, "The knowledge base has no supported answer. An expert task was opened" + (d.escalationId ? " (#" + d.escalationId + ")" : "") + "."));
+  if (d && d.guardrailTriggered) root.append(h("div", { class: "banner info" }, "Guardrail: " + d.guardrailTriggered));
+  if (cls && cls.flags.includes("injection_attempt")) root.append(h("div", { class: "banner" }, "This email contains text that tries to instruct the assistant. It was treated as data."));
+
+  root.append(h("div", { class: "card" }, h("h2", {}, v.email.subject), h("div", { class: "mute" }, "From " + v.email.from),
+    h("div", { class: "row", style: "margin:6px 0" }, cls && tag(cls.category), cls && tag("risk: " + cls.risk, cls.risk), cls && tag("urgency: " + cls.urgency, cls.urgency === "high" ? "high" : ""), ...(cls ? cls.flags.map((f) => tag(f, "high")) : []), tag(v.email.status)),
+    h("pre", { class: "email" }, v.email.body), cls && h("div", { class: "mute", style: "margin-top:6px" }, "Summary: " + cls.summary + " (classified by " + v.email.classifiedBy + ")")));
+
+  if (d) {
+    root.append(h("div", { class: "card" }, h("h2", {}, "Evidence from the Knowledge Brain"),
+      d.evidence.length ? d.evidence.map((e) => h("div", { style: "margin-bottom:8px" }, h("a", { href: e.url, target: "_blank", rel: "noopener noreferrer" }, e.title), h("span", { class: "mute" }, "  relevance " + e.score), h("div", { class: "mute" }, e.excerpt || ""))) : h("div", { class: "mute" }, "No evidence attached (" + d.knowledgeStatus.replace("_", " ") + ")."),
+      h("div", { class: "mute" }, "draft kind: " + d.draftKind + " | " + d.model + " | " + d.promptVersion)));
+
+    const sent = v.email.status === "sent" || v.email.status === "auto_sent";
+    const ta = h("textarea", sent ? { readonly: "readonly" } : {}); ta.value = sent && v.outbox ? v.outbox.body : d.suggestedReply;
+    const reason = h("input", { type: "text", placeholder: "Reason for the change (required when editing, rejecting or escalating)" });
+    const err = h("div", { class: "err" });
+    const act = (action) => async () => {
+      err.textContent = "";
+      try { await api("/api/emails/" + id + "/review", { method: "POST", body: { action, reviewer: "support-agent", text: action === "approve" ? undefined : ta.value, reason: reason.value || undefined } }); await refresh(id); }
+      catch (e) { err.textContent = e.message; }
+    };
+    root.append(h("div", { class: "card" }, h("h2", {}, "Suggested reply"),
+      d.nextAction && h("div", { class: "mute" }, "Next action: " + d.nextAction + (d.followUpDate ? " | follow up by " + d.followUpDate : "")), ta,
+      !sent && h("div", { style: "margin-top:8px" }, reason, h("div", { class: "row", style: "margin-top:8px" },
+        h("button", { class: "p", onclick: act("approve") }, "Approve & send"), h("button", { onclick: act("edit") }, "Edit & send"),
+        h("button", { onclick: act("reject") }, "Reject & send replacement"), h("button", { onclick: act("needs_expert") }, "Needs expert"))),
+      err, sent && h("div", { class: "mute" }, "Sent (simulated delivery" + (v.email.status === "auto_sent" ? ", automatic" : "") + ").")));
+    if (v.email.status === "auto_sent") root.append(h("div", { class: "card" }, h("h2", {}, "Quality check on this automatic reply"), h("div", { class: "row" },
+      h("button", { onclick: async () => { await api("/api/emails/" + id + "/qa", { method: "POST", body: { ok: true, reviewer: "qa" } }); refresh(id); } }, "Looks good"),
+      h("button", { onclick: async () => { await api("/api/emails/" + id + "/qa", { method: "POST", body: { ok: false, reviewer: "qa", note: "bad auto reply" } }); refresh(id); } }, "Problem (disables autonomy)"))));
+    if (v.reviews.length) root.append(h("div", { class: "card" }, h("h2", {}, "Feedback history"), h("table", {}, h("tr", {}, h("th", {}, "Action"), h("th", {}, "Modified"), h("th", {}, "Counts toward streak"), h("th", {}, "Reason")),
+      v.reviews.map((r) => h("tr", {}, h("td", {}, r.action), h("td", {}, r.modified ? "yes" : "no"), h("td", {}, r.qualifying ? "yes" : "no"), h("td", {}, r.reason || ""))))));
+  }
+  await loadList();
+  await autonomyPanel(root);
+}
+
+async function autonomyPanel(root) {
+  const a = await api("/api/autonomy");
+  const rows = Object.entries(a.states).map(([cat, s]) => {
+    const can = s.autonomy === "eligible";
+    return h("tr", {}, h("td", {}, cat.replace("_", " ")), h("td", {}, s.consecutive + " / " + a.threshold), h("td", {}, s.autonomy), h("td", { class: "mute" }, s.lastReason || ""),
+      h("td", {}, can ? h("button", { onclick: async () => { try { await api("/api/autonomy/" + cat + "/enable", { method: "POST", body: { actor: "admin" } }); } catch (e) { alert(e.message); } open(sel); } }, "Enable trial") : s.autonomy === "enabled" ? h("button", { onclick: async () => { await api("/api/autonomy/" + cat + "/disable", { method: "POST", body: { actor: "admin", reason: "manual" } }); open(sel); } }, "Disable") : ""));
+  });
+  root.append(h("div", { class: "card" }, h("h2", {}, "Automatic sending (off by default)"),
+    h("div", { class: "row", style: "margin-bottom:6px" }, "Global switch: " + (a.global ? "ON" : "OFF"), h("button", { onclick: async () => { await api("/api/autonomy/global", { method: "POST", body: { on: !a.global, actor: "admin" } }); open(sel); } }, a.global ? "Turn off" : "Turn on")),
+    h("table", {}, h("tr", {}, h("th", {}, "Category"), h("th", {}, "Unmodified streak"), h("th", {}, "State"), h("th", {}, "Note"), h("th", {}, "")), rows),
+    h("div", { class: "mute", style: "margin-top:6px" }, "Refunds and complaints never become automatic. A category needs " + a.threshold + " consecutive unmodified drafts to become eligible; a person must enable it; each email must still be low-risk and fully grounded.")));
+}
+
+async function refresh(id) { await open(id); }
+$("flt").addEventListener("change", loadList);
+$("nsend").addEventListener("click", async () => {
+  $("nerr").textContent = "";
+  try { const v = await api("/api/emails", { method: "POST", body: { from: $("nf").value, subject: $("ns").value, body: $("nb").value } }); $("nb").value = ""; $("ns").value = ""; await open(v.email.id); }
+  catch (e) { $("nerr").textContent = e.message; }
+});
+(async () => { try { const s = await api("/health"); $("sys").textContent = "knowledge: " + (s.knowledge.ok ? "ok" : "DOWN (" + s.knowledge.detail + ")") + " | model: " + s.llm; } catch { $("sys").textContent = "agent unreachable"; } await loadList(); })();
+</script>
+</body>
+</html>

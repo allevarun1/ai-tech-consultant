@@ -105,7 +105,8 @@ class LLM:
                 s_terms = _terms(line)
                 if len(line) < 25 or not s_terms:
                     continue
-                scored.append((len(q_terms & s_terms) / max(len(q_terms), 1), pi, li))
+                # cap the denominator: a long customer email must not dilute every sentence below the threshold
+                scored.append((len(q_terms & s_terms) / max(min(len(q_terms), 8), 1), pi, li))
         scored.sort(key=lambda t: -t[0])
         picks = [t for t in scored[:2] if t[0] >= 0.2]
         if not picks:
