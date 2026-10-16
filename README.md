@@ -10,6 +10,8 @@ Three connected AI services for a small software/service business: **Knowledge B
 
 **Prerequisites:** Python 3.11+, Node.js 22.18+ (24 recommended), internet access for the first ingestion.
 
+**First-time setup on a new machine:** `python setup.py` (checks Python/Node, creates `.venv`, installs everything, creates `.env`; add `--test` to run the suites, `--ingest 20` to load articles). Then run `.venv/Scripts/python start.py` (Windows) or `.venv/bin/python start.py` (macOS/Linux).
+
 **Configure:** `cp .env.example .env`. Set `ANTHROPIC_API_KEY` to use Claude. Without it every service runs in a documented **offline fallback** (extractive answers, rule-based classification, template replies, rule-based transcript analysis) - fine for the demo and tests, but not a substitute for the model comparison in `EVALS.md`. Never commit `.env`.
 
 **Run everything (one command):**
