@@ -1,0 +1,40 @@
+{
+  "corpus": {
+    "pages": 80,
+    "chunks": 470,
+    "open_escalations": 0
+  },
+  "cases": 32,
+  "escalation_regressions_available": false,
+  "retrieval": {
+    "vector": {
+      "hit@5": 1.0,
+      "mrr": 0.955,
+      "median_ms": 3.85,
+      "n": 26
+    },
+    "keyword": {
+      "hit@5": 1.0,
+      "mrr": 0.981,
+      "median_ms": 3.46,
+      "n": 26
+    },
+    "hybrid": {
+      "hit@5": 1.0,
+      "mrr": 0.962,
+      "median_ms": 10.18,
+      "n": 26
+    }
+  },
+  "end_to_end": [
+    {
+      "model": "offline-extractive",
+      "cases": 32,
+      "pass_rate": 0.875,
+      "error_rate": 0.0,
+      "latency_median_ms": 12.5,
+      "latency_p95_ms": 15.3,
+      "cost_note": "tokens recorded by provider; add evaluation/pricing.json to compute cost"
+    }
+  ]
+}
