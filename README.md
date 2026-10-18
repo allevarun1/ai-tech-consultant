@@ -10,6 +10,8 @@ Three connected AI services for a small software/service business: **Knowledge B
 
 **Prerequisites:** Python 3.11+, Node.js 22.18+ (24 recommended), internet access for the first ingestion.
 
+**Get the code:** `git clone https://github.com/allevarun1/ai-tech-consultant.git` then `cd ai-tech-consultant`.
+
 **First-time setup on a new machine:** `python setup.py` (checks Python/Node, creates `.venv`, installs everything, creates `.env`; add `--test` to run the suites, `--ingest 20` to load articles). Then run `.venv/Scripts/python start.py` (Windows) or `.venv/bin/python start.py` (macOS/Linux).
 
 **Configure:** `cp .env.example .env` (the services read it themselves; a variable already set in your shell wins). Never commit `.env`.
