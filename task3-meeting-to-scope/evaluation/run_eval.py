@@ -6,9 +6,12 @@ every pass/fail comes from a run. Estimation bands are *sanity* bands, not valid
 """
 from __future__ import annotations
 
+import argparse
 import csv
+import dataclasses
 import json
 import os
+import re
 import statistics
 import tempfile
 import time
@@ -76,10 +79,26 @@ def read(name: str) -> str:
     return (ROOT / "transcripts" / name).read_text(encoding="utf-8")
 
 
+def config_for(s, spec: str):
+    """'claude:<model>' | 'groq:<model>' | 'gemini:<model>' | 'offline' -> Settings using exactly that provider, no fallback."""
+    if spec == "offline":
+        return dataclasses.replace(s, llm_provider="offline", llm_fallback="none")
+    provider, _, model = spec.partition(":")
+    fields = {"claude": "analyst_model", "groq": "groq_model", "gemini": "gemini_model"}
+    if provider not in fields or not model:
+        raise SystemExit(f"--provider must look like claude:<model>, groq:<model>, gemini:<model> or offline (got '{spec}')")
+    return dataclasses.replace(s, llm_provider=provider, llm_fallback="none", **{fields[provider]: model})
+
+
 def main() -> None:
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--provider", default=None, help="run with exactly this provider, e.g. groq:llama-3.3-70b-versatile (default = the configured LLM_PROVIDER chain)")
+    args = ap.parse_args()
     s = get_settings()
+    if args.provider:
+        s = config_for(s, args.provider)
     llm = LLM(s)
-    model = f"claude:{s.analyst_model}" if llm.available else "rules-baseline"
+    model = llm.name if llm.available else "rules-baseline"
     kb = KbClient(s.kb_url, s.kb_api_key, s.kb_timeout_s)
     kb_up = kb.health()["ok"]
     rows: list[dict] = []
@@ -164,7 +183,7 @@ def main() -> None:
 
     # ---- summary -------------------------------------------------------------------------------------------------------
     RESULTS.mkdir(exist_ok=True)
-    name = model.replace(":", "_")
+    name = re.sub(r"[^A-Za-z0-9._+-]", "_", model)
     with (RESULTS / f"scope_{name}.csv").open("w", newline="", encoding="utf-8") as f:
         w = csv.DictWriter(f, FIELDS)
         w.writeheader()
@@ -176,7 +195,7 @@ def main() -> None:
     summary = {"model": model, "cases": len(rows), "pass_rate": round(sum(r["passed"] for r in rows) / len(rows), 3), "knowledge_service_up": kb_up,
                "by_group": {names[k]: f"{sum(r['passed'] for r in v)}/{len(v)}" for k, v in groups.items()},
                "latency_ms": {"median": statistics.median(r["latency_ms"] for r in rows), "full_initial_meeting": round(ms_a), "full_followup_meeting": round(ms_c)},
-               "llm_tokens": {"in": llm.input_tokens, "out": llm.output_tokens}, "failures": [{k: r[k] for k in ("case_id", "expected", "actual", "failure_reason")} for r in rows if not r["passed"]]}
+               "llm_tokens": {"in": llm.input_tokens, "out": llm.output_tokens}, "provider_usage": llm.chain.usage, "failures": [{k: r[k] for k in ("case_id", "expected", "actual", "failure_reason")} for r in rows if not r["passed"]]}
     (RESULTS / "summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
     print(json.dumps(summary, indent=2))
 

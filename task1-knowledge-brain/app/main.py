@@ -58,7 +58,7 @@ def create_app(settings: Optional[Settings] = None, store: Optional[Store] = Non
     @app.get("/health", response_model=Health)
     def health() -> Health:
         c = store.counts()
-        return Health(status="ok", llm=llm.name, active_pages=c["pages"], active_chunks=c["chunks"], open_escalations=c["open_escalations"])
+        return Health(status="ok", llm=llm.chain_label, llm_notes=llm.chain.notes, active_pages=c["pages"], active_chunks=c["chunks"], open_escalations=c["open_escalations"])
 
     @app.post("/query", response_model=QueryResponse, dependencies=[Depends(auth)])
     def query(req: QueryRequest) -> QueryResponse:

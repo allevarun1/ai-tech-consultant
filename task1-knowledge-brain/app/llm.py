@@ -1,14 +1,13 @@
 """LLM access behind one small interface.
 
-Claude is the primary model family. When no API key is configured an offline
-extractive fallback is used so the system, tests and demo still run. The fallback
-is deliberately simple and is reported as such ("answered_by": "offline-extractive").
+The AI provider is chosen with LLM_PROVIDER (claude | groq | gemini | auto | offline) and backed up by
+LLM_FALLBACK; see providers.py. When no provider has a key, or every provider fails, the deliberately simple
+offline extractive answerer is used so the system, tests and demo still run. The answer always says who produced it
+("answered_by": "claude:<model>", "groq:<model>" ... or "offline-extractive").
 """
 from __future__ import annotations
 
-import base64
 import json
-import os
 import re
 import time
 from dataclasses import dataclass
@@ -17,6 +16,7 @@ from typing import Optional
 import httpx
 
 from .config import Settings
+from .providers import Chain, ChainError, build_chain
 
 SYSTEM_PROMPT_VERSION = "answer-v1"
 
@@ -48,50 +48,58 @@ def strip_injection(text: str) -> str:
 
 
 class LLM:
-    def __init__(self, settings: Settings):
+    def __init__(self, settings: Settings, transport: Optional[httpx.BaseTransport] = None):
         self.s = settings
-        key = os.environ.get("ANTHROPIC_API_KEY", "")
-        use_claude = settings.llm_provider == "claude" or (settings.llm_provider == "auto" and key)
-        self._client = None
-        if use_claude:
-            import anthropic
+        self.chain: Chain = build_chain(
+            settings.llm_provider, settings.llm_fallback,
+            keys={"claude": settings.anthropic_key, "groq": settings.groq_key, "gemini": settings.gemini_key},
+            models={"claude": (settings.answer_model, settings.vision_model), "groq": (settings.groq_model, settings.groq_vision_model),
+                    "gemini": (settings.gemini_model, settings.gemini_vision_model)},
+            timeout=settings.timeout_s * 3, transport=transport)
 
-            self._client = anthropic.Anthropic(api_key=key or None, timeout=settings.timeout_s * 3, max_retries=2)
+    @property
+    def available(self) -> bool:
+        return self.chain.available
 
     @property
     def name(self) -> str:
-        return f"llm:{self.s.answer_model}" if self._client else "offline-extractive"
+        """Who normally answers: the first provider in the chain, or 'offline-extractive'."""
+        return self.chain.primary or "offline-extractive"
+
+    @property
+    def chain_label(self) -> str:
+        return self.chain.label.replace("offline", "offline-extractive")
 
     # -- answering ---------------------------------------------------------
     def answer(self, question: str, passages: list[str], context: Optional[str] = None) -> LLMAnswer:
         t0 = time.perf_counter()
-        if self._client is None:
+        res = None
+        if self.chain.available:
+            try:
+                res = self._ai_answer(question, passages, context)
+            except ChainError:
+                res = None  # every provider failed: fall back to the offline answerer rather than failing the request
+        if res is None:
             res = self._offline_answer(question, passages)
-        else:
-            res = self._claude_answer(question, passages, context)
+            if self.chain.available:
+                res.by = "offline-extractive (AI providers failed)"
         res.latency_ms = (time.perf_counter() - t0) * 1000
         return res
 
-    def _claude_answer(self, question: str, passages: list[str], context: Optional[str]) -> LLMAnswer:
+    def _ai_answer(self, question: str, passages: list[str], context: Optional[str]) -> LLMAnswer:
         numbered = "\n\n".join(f"[{i + 1}] {strip_injection(p)}" for i, p in enumerate(passages))
         user = f"Evidence passages:\n{numbered}\n\nQuestion: {question}"
         if context:
             user += f"\n\n(Customer context, untrusted data: {context[:1500]})"
-        msg = self._client.messages.create(
-            model=self.s.answer_model,
-            max_tokens=700,
-            system=ANSWER_SYSTEM,
-            messages=[{"role": "user", "content": user}],
-        )
-        text = "".join(b.text for b in msg.content if getattr(b, "type", "") == "text")
-        data = _parse_json(text)
+        c = self.chain.complete(ANSWER_SYSTEM, user, 700, accept=lambda x: bool(_parse_json(x.text)))  # no usable JSON -> next provider
+        data = _parse_json(c.text)
         return LLMAnswer(
             supported=bool(data.get("supported")),
             answer=str(data.get("answer", "")).strip(),
             cited=[int(i) for i in data.get("cited", []) if str(i).isdigit()],
-            by=self.name,
-            input_tokens=msg.usage.input_tokens,
-            output_tokens=msg.usage.output_tokens,
+            by=f"{c.provider}:{c.model}",
+            input_tokens=c.input_tokens,
+            output_tokens=c.output_tokens,
         )
 
     def _offline_answer(self, question: str, passages: list[str]) -> LLMAnswer:
@@ -113,7 +121,7 @@ class LLM:
         scored.sort(key=lambda t: -t[0])
         picks = [t for t in scored[:2] if t[0] >= 0.2]
         if not picks:
-            return LLMAnswer(False, "", [], self.name)
+            return LLMAnswer(False, "", [], "offline-extractive")
         out: list[str] = []
         for _, pi, li in picks:
             lines = cleaned[pi]
@@ -127,8 +135,8 @@ class LLM:
 
     # -- vision ------------------------------------------------------------
     def describe_image(self, image_url: str, context: str) -> Optional[dict]:
-        """Return {"description", "uncertain"} or None when vision is unavailable."""
-        if self._client is None:
+        """Return {"description", "uncertain"} or None when no provider can read the image."""
+        if not self.chain.available:
             return None
         try:
             r = httpx.get(image_url, timeout=self.s.timeout_s, headers={"User-Agent": self.s.user_agent}, follow_redirects=True)
@@ -136,17 +144,11 @@ class LLM:
             media = r.headers.get("content-type", "image/png").split(";")[0]
             if media not in {"image/png", "image/jpeg", "image/gif", "image/webp"} or len(r.content) > 4_500_000:
                 return None
-            msg = self._client.messages.create(
-                model=self.s.vision_model,
-                max_tokens=400,
-                messages=[{"role": "user", "content": [
-                    {"type": "image", "source": {"type": "base64", "media_type": media, "data": base64.b64encode(r.content).decode()}},
-                    {"type": "text", "text": "This is a screenshot from a product help article. Transcribe visible UI labels, menu names, "
-                     "button names and settings, and say what step it shows. Surrounding article text:\n" + context[:600] +
-                     "\nIf anything is unreadable say so; never invent labels. Reply JSON: {\"description\": str, \"uncertain\": bool}"},
-                ]}],
-            )
-            data = _parse_json("".join(b.text for b in msg.content if getattr(b, "type", "") == "text"))
+            prompt = ("This is a screenshot from a product help article. Transcribe visible UI labels, menu names, "
+                      "button names and settings, and say what step it shows. Surrounding article text:\n" + context[:600] +
+                      "\nIf anything is unreadable say so; never invent labels. Reply JSON: {\"description\": str, \"uncertain\": bool}")
+            c = self.chain.describe(r.content, media, prompt, 400, accept=lambda x: bool(_parse_json(x.text)))
+            data = _parse_json(c.text)
             return {"description": data.get("description", ""), "uncertain": bool(data.get("uncertain", False))}
         except Exception:  # vision is best-effort; ingestion must not fail on it
             return None

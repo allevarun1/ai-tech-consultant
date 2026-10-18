@@ -29,6 +29,7 @@ Why a shared service: if both apps needed product facts, two copies of retrieval
 | "20 unmodified drafts" defined precisely, plus extra safeguards | The brief's rule alone isn't proof of safety | Refunds and complaints can never be automatic |
 | Estimates from a work-breakdown template, not a model's number | Auditable; avoids invented commitments | Templates need calibrating on real data |
 | Follow-ups compared with the *approved* version only | An AI suggestion must never become an agreed commitment | Need an approval step first |
+| AI provider is a setting (`LLM_PROVIDER`, `LLM_FALLBACK`) with an automatic fallback chain | Claude is the intended model, but Groq or Gemini free keys can be used while developing; a rate limit or outage must not stop the system | Free-tier models differ in quality and JSON reliability; use Claude for the final results |
 
 ## 5. Problems I hit and how I fixed them (good interview material)
 * **Bot answered "capital of France".** The first answer logic matched "capital letters" in an article. I added out-of-scope detection and a prompt-injection check: pass rate 65% -> 85% on my set.
@@ -45,6 +46,8 @@ Why a shared service: if both apps needed product facts, two copies of retrieval
 * **Why not a vector database?** Scale and ops cost: one transactional file was enough for ~10k chunks, and I kept the index behind one class so embeddings can be swapped in.
 * **How do you stop hallucination?** Answer only from retrieved evidence, cite sources, abstain when evidence is weak, and for transcripts drop any extracted requirement whose quote isn't in the original text.
 * **What if the knowledge service is down?** Task 2 sends a holding reply with no product facts and shows a banner; Task 3 marks items unverified. It never turns an outage into "custom work" or "existing feature".
+* **What if the AI provider is rate limited or down?** The call moves to the next provider in the chain (set by `LLM_FALLBACK`); if all fail, each service uses its built-in offline method (extractive answers, rule-based classification, template drafts, rule-based transcript reading). Every answer records which provider produced it, and `/health` shows the chain.
+* **Can you use Gemini or Groq instead of Claude?** Technically yes: set `LLM_PROVIDER` and the matching key. The brief asks for Claude as the central model family, so use Claude for the final results and the model comparison.
 * **How is prompt injection handled?** Retrieved text and emails are treated as data; known patterns are flagged; the guardrails run on the final text regardless.
 * **What would you do next?** Run the Claude comparison, add dense embeddings and a reranker, calibrate estimates with real project data, pilot the inbox with real reviewers.
 

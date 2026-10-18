@@ -1,5 +1,5 @@
 /**
- * node src/evaluation/run-eval.ts [--split dev|test|all] [--offline] [--compare modelA,modelB] [--rule N]
+ * node src/evaluation/run-eval.ts [--split dev|test|all] [--offline] [--compare claude:modelA,groq:modelB,...]
  *
  * Needs the Knowledge Brain running (KB_URL, default http://127.0.0.1:8001).
  * Also runs three "knowledge service down" cases to measure the failure path.
@@ -10,6 +10,7 @@ import path from "node:path";
 import { loadConfig } from "../config.ts";
 import { evaluate, loadEmails, toCsv, type EvalEmail, type EvalRow } from "./evaluate.ts";
 import { KnowledgeClient } from "../knowledge-client/client.ts";
+import { Llm } from "../llm.ts";
 
 const args = process.argv.slice(2);
 const flag = (n: string) => (args.includes(`--${n}`) ? (args[args.indexOf(`--${n}`) + 1] ?? "") : null);
@@ -35,11 +36,21 @@ const downCases: EvalEmail[] = all
   .slice(0, 3)
   .map((e) => ({ ...e, id: `${e.id}-KBDOWN`, behavior: "escalate" as const }));
 
-const configs: { label: string; classifyModel?: string; draftModel?: string; noLlm: boolean }[] = offline || !cfg.anthropicKey
+// A comparison entry is "provider:model" (claude:..., groq:..., gemini:...); a plain model name means Claude.
+const parseSpec = (spec: string) => {
+  const i = spec.indexOf(":");
+  const provider = i > 0 ? spec.slice(0, i) : "claude";
+  const model = i > 0 ? spec.slice(i + 1) : spec;
+  if (!["claude", "groq", "gemini"].includes(provider) || !model) throw new Error(`--compare entries must look like claude:<model>, groq:<model> or gemini:<model> (got '${spec}')`);
+  return { label: `${provider}:${model}`, provider, model, noLlm: false };
+};
+const ai = new Llm(cfg);
+const configs: { label: string; provider?: string; model?: string; noLlm: boolean }[] = offline || !ai.available
   ? [{ label: "offline-rules+templates", noLlm: true }]
   : compare.length
-    ? compare.map((m) => ({ label: m, classifyModel: m, draftModel: m, noLlm: false }))
-    : [{ label: `${cfg.classifyModel}+${cfg.draftModel}`, noLlm: false }];
+    ? compare.map(parseSpec)
+    : [{ label: ai.label(cfg.draftModel), noLlm: false }];
+if (!offline && !ai.available) console.warn(`No AI provider available (${ai.notes.join("; ") || "none configured"}): running the offline baseline.`);
 
 const summaries = [];
 for (const c of configs) {

@@ -39,7 +39,7 @@ async function stubKb(): Promise<Stub> {
 }
 
 function mkAgent(kbUrl: string, over: Partial<Config> = {}) {
-  const cfg = { ...loadConfig({}), anthropicKey: "", kbUrl, dbPath: ":memory:", ...over };
+  const cfg = { ...loadConfig({}), llmProvider: "offline", kbUrl, dbPath: ":memory:", ...over };
   const db = new InboxDb(":memory:");
   const kb = new KnowledgeClient({ baseUrl: kbUrl, timeoutMs: 1500, retries: 1 });
   return { cfg, db, kb, agent: new InboxAgent(cfg, db, kb, new Llm(cfg)) };
@@ -219,7 +219,7 @@ test("feedback patterns surface repeated edits", async () => {
 // ---- versioned rules + regression gate (HTTP) ------------------------------------------------------------------------
 test("API: validation errors, rule activation requires a passing regression, concise rule shortens replies", async () => {
   const kb = await stubKb();
-  const { server } = buildApp({ ...loadConfig({}), anthropicKey: "", kbUrl: kb.url, dbPath: ":memory:" }, { db: new InboxDb(":memory:"), kb: new KnowledgeClient({ baseUrl: kb.url, timeoutMs: 1500, retries: 0 }), llm: new Llm({ anthropicKey: "" }) });
+  const { server } = buildApp({ ...loadConfig({}), llmProvider: "offline", kbUrl: kb.url, dbPath: ":memory:" }, { db: new InboxDb(":memory:"), kb: new KnowledgeClient({ baseUrl: kb.url, timeoutMs: 1500, retries: 0 }), llm: new Llm({ anthropicKey: "" }) });
   await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
   const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
   const j = (p: string, body?: unknown) => fetch(base + p, body === undefined ? undefined : { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }).then(async (r) => ({ status: r.status, body: (await r.json()) as any }));

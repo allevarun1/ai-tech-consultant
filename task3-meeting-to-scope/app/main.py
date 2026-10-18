@@ -30,7 +30,7 @@ def create_app(settings: Optional[Settings] = None, store: Optional[Store] = Non
 
     @app.get("/health")
     def health() -> dict:
-        return {"status": "ok", "llm": "claude" if llm.available else "offline-rules", "knowledge": kb.health()}
+        return {"status": "ok", "llm": llm.chain_label, "llm_notes": llm.chain.notes, "knowledge": kb.health()}
 
     @app.get("/", include_in_schema=False)
     def ui() -> FileResponse:

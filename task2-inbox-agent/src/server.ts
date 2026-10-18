@@ -62,7 +62,7 @@ export function buildApp(cfg: Config = loadConfig(), parts?: { db?: InboxDb; kb?
       }
       if (req.method === "GET" && url.pathname === "/health") {
         const h = await kb.health();
-        return send(res, 200, { status: "ok", knowledge: h, llm: llm.available ? "claude" : "offline", autonomyGlobal: globalAutonomy(db, cfg) });
+        return send(res, 200, { status: "ok", knowledge: h, llm: llm.available ? llm.label(cfg.draftModel) : "offline", llmNotes: llm.notes, autonomyGlobal: globalAutonomy(db, cfg) });
       }
       if (req.method === "POST" && url.pathname === "/api/emails") {
         const input = EmailInputSchema.parse(await readJson(req));
@@ -147,6 +147,7 @@ export function buildApp(cfg: Config = loadConfig(), parts?: { db?: InboxDb; kb?
 
 if (import.meta.main) {
   const cfg = loadConfig();
-  const { server } = buildApp(cfg);
-  server.listen(cfg.port, "127.0.0.1", () => console.log(`Inbox Agent on http://127.0.0.1:${cfg.port}  (knowledge: ${cfg.kbUrl}, llm: ${cfg.anthropicKey ? "claude" : "offline"})`));
+  const llm = new Llm(cfg);
+  const { server } = buildApp(cfg, { llm });
+  server.listen(cfg.port, "127.0.0.1", () => console.log(`Inbox Agent on http://127.0.0.1:${cfg.port}  (knowledge: ${cfg.kbUrl}, ai: ${llm.available ? llm.label(cfg.draftModel) : "offline"}${llm.notes.length ? `; ${llm.notes.join("; ")}` : ""})`));
 }

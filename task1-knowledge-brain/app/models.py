@@ -90,7 +90,8 @@ class Escalation(BaseModel):
 
 class Health(BaseModel):
     status: str
-    llm: str
+    llm: str                       # provider chain, e.g. "groq:llama-3.3-70b-versatile > offline-extractive"
+    llm_notes: list[str] = []      # why a requested provider is not in the chain (e.g. missing key)
     active_pages: int
     active_chunks: int
     open_escalations: int

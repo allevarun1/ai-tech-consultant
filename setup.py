@@ -92,7 +92,8 @@ def main() -> int:
         print("  .env already exists - left untouched")
     elif example.exists():
         shutil.copyfile(example, env)
-        print("  created .env from .env.example. Add ANTHROPIC_API_KEY to use Claude; without it the services run in offline fallback mode.")
+        print("  created .env from .env.example. Add ANTHROPIC_API_KEY, GROQ_API_KEY and/or GEMINI_API_KEY and pick the default with LLM_PROVIDER;\n"
+              "  with no key the services run in offline fallback mode.")
 
     if a.ingest:
         step(f"Ingesting {a.ingest} articles into the Knowledge Brain")

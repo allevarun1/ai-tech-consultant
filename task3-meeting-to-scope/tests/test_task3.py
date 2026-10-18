@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from pathlib import Path
 
 import httpx
@@ -52,7 +53,7 @@ def fake_kb(down: bool = False, calls: list | None = None) -> KbClient:
 
 @pytest.fixture()
 def client(tmp_path):
-    s = Settings(db_path=str(tmp_path / "s.sqlite"), anthropic_key="")
+    s = Settings(db_path=str(tmp_path / "s.sqlite"), llm_provider="offline")
     return TestClient(create_app(s, Store(s.db_path), fake_kb(), LLM(s)))
 
 
@@ -231,7 +232,7 @@ def test_approval_gate_edit_reset_and_idempotent_send(client):
 
 
 def test_validation_and_outage_are_visible_not_silent(tmp_path):
-    s = Settings(db_path=str(tmp_path / "s.sqlite"))
+    s = Settings(db_path=str(tmp_path / "s.sqlite"), llm_provider="offline")
     c = TestClient(create_app(s, Store(s.db_path), fake_kb(down=True), LLM(s)))
     pid = mkproject(c)
     assert c.post(f"/projects/{pid}/meetings", json={"title": "x", "date": "05/10/2026", "kind": "initial", "transcript": A}).status_code == 422
@@ -251,3 +252,51 @@ def test_merge_followup_marks_removed_and_new_group_out_of_scope():
     new, book = merge_followup(rep.requirements, fu)
     assert [b.topic for b in book["removed"]] == ["search.ai_recommendations"] and "search.ai_recommendations" not in [r.topic for r in new]
     assert [o.topic for o in book["out_of_scope"]] == ["homepage.redesign"] and all(r.intent != Intent.REMOVE for r in new)
+
+
+# ---- AI provider selection and fallback (Groq / Gemini stubbed with a MockTransport) ---------------------------------------
+def provider_settings(**kw) -> Settings:
+    base = dict(llm_provider="auto", llm_fallback="auto", anthropic_key="", groq_key="", gemini_key="")
+    base.update(kw)
+    return Settings(**base)
+
+
+def ai_reply(turns_text: str):
+    """A fake chat endpoint: finds the 'map view' turn in the prompt and returns a valid extraction with its real quote."""
+    def handler(req: httpx.Request) -> httpx.Response:
+        prompt = json.loads(req.content)["messages"][-1]["content"]
+        m = re.search(r"\(turn (\d+)\) \[[\d:]+\] [^:]+ \(client\): [^\n]*map view", prompt)
+        reqs = [{"topic": "search.map_view", "description": "map", "quote": "we need a map view of the results", "turn_id": int(m.group(1)),
+                 "priority": "must-have", "status": "confirmed", "intent": "add"}] if m else []
+        body = {"requirements": reqs, "decisions": [], "exclusions": [], "client_commitments": [], "deadlines": [], "open_questions": []}
+        return httpx.Response(200, json={"choices": [{"message": {"content": json.dumps(body)}}], "usage": {"prompt_tokens": 100, "completion_tokens": 20}})
+    return handler
+
+
+def test_transcript_is_read_by_the_chosen_provider_and_recorded():
+    llm = LLM(provider_settings(llm_provider="groq", groq_key="gk"), transport=httpx.MockTransport(ai_reply(A)))
+    rep, meta, _ = analyze_meeting(A, 1, "initial", llm=llm)
+    assert meta["extractor"] == "groq:llama-3.3-70b-versatile"
+    assert [r.topic for r in rep.requirements] == ["search.map_view"]            # only what the model returned (and could quote)
+    assert rep.chunks_processed == 2                                              # 26 turns > 25 per chunk: one model call per chunk
+    assert llm.chain.usage["groq"]["calls"] == rep.chunks_processed and llm.input_tokens == 100 * rep.chunks_processed
+
+
+def test_failing_primary_falls_back_then_to_rules_with_a_visible_warning():
+    def handler(req: httpx.Request) -> httpx.Response:
+        return httpx.Response(429, text="rate limited") if "groq.com" in str(req.url) else ai_reply(A)(req)
+
+    llm = LLM(provider_settings(llm_provider="groq", groq_key="gk", gemini_key="mk"), transport=httpx.MockTransport(handler))
+    _, meta, _ = analyze_meeting(A, 1, "initial", llm=llm)
+    assert meta["extractor"] == "gemini:gemini-2.0-flash"                         # groq was rate limited -> gemini answered
+
+    dead = LLM(provider_settings(llm_provider="groq", groq_key="gk"), transport=httpx.MockTransport(lambda r: httpx.Response(500, text="down")))
+    rep, meta, _ = analyze_meeting(A, 1, "initial", llm=dead)
+    assert meta["extractor"] == "rules" and any("AI extraction failed" in w for w in rep.warnings)
+    assert {r.topic for r in rep.requirements} >= {"search.map_view", "search.filters.category"}   # the rule-based result still works
+
+
+def test_health_reports_the_chain_and_why_a_provider_is_missing(tmp_path):
+    s = provider_settings(db_path=str(tmp_path / "s.sqlite"), llm_provider="groq", llm_fallback="none", groq_key="")
+    h = TestClient(create_app(s, Store(s.db_path), fake_kb(), LLM(s))).get("/health").json()
+    assert h["llm"] == "offline-rules" and any("GROQ_API_KEY" in n for n in h["llm_notes"])

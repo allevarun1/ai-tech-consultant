@@ -10,3 +10,4 @@ dist/
 .venv/
 *.sqlite-shm
 *.sqlite-wal
+~$*

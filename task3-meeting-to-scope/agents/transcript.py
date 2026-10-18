@@ -345,21 +345,21 @@ def analyze_meeting(text: str, meeting_id: int, kind: str, baseline_topics: set[
     baseline_topics = baseline_topics or set()
     results: list[ChunkResult] = []
     fallback_notes: list[str] = []
-    used_llm = False
+    providers_used: set[str] = set()
     for ch in chunk_turns(turns, chunk_size, overlap):
         res = None
         if llm is not None and llm.available:
             try:
                 res = extract_chunk_llm(llm, ch, meeting_id, kind, baseline_topics)
-                used_llm = True
-            except Exception as e:  # noqa: BLE001 - fall back, but tell the reviewer
+                providers_used.add(getattr(llm, "last_provider", None) or "llm")
+            except Exception as e:  # noqa: BLE001 - every provider failed or the output was invalid: fall back, but tell the reviewer
                 res = None
-                fallback_notes.append(f"LLM extraction failed for a chunk ({type(e).__name__}); used rule-based extraction for it")
+                fallback_notes.append(f"AI extraction failed for a chunk ({type(e).__name__}); used rule-based extraction for it")
         if res is None:
             res = extract_chunk_rules(ch, meeting_id, kind, baseline_topics, meta.get("date"))
         results.append(res)
     rep = merge_chunks(results, meeting_id, meta.get("date"))
     rep = validate_against_source(rep, turns)
     rep.warnings.extend(fallback_notes)
-    meta["extractor"] = "claude" if used_llm else "rules"
+    meta["extractor"] = "+".join(sorted(providers_used)) if providers_used else "rules"  # e.g. "groq:llama-3.3-70b-versatile" or "rules"
     return rep, meta, turns

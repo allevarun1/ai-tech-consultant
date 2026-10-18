@@ -4,7 +4,8 @@
  1. installs Python and Node dependencies if they are missing
  2. ingests a small starter corpus into the Knowledge Brain if its database is empty (default 20 articles)
  3. starts Knowledge Brain :8001, Inbox Agent :8002, Meeting-to-Scope :8003 and waits for each to be healthy
-Ctrl-C stops all three. Secrets come from .env (see .env.example); with no ANTHROPIC_API_KEY everything runs
+Ctrl-C stops all three. Settings come from .env (see .env.example): LLM_PROVIDER picks the AI provider (claude, groq,
+gemini, auto, offline) and LLM_FALLBACK the backups; with no key at all everything runs
 in the documented offline fallback mode.
 """
 from __future__ import annotations
@@ -99,8 +100,15 @@ def main() -> int:
             time.sleep(0.5)
         if pending:
             sys.exit(f"timed out waiting for: {', '.join(pending)}")
-        mode = "Claude" if env.get("ANTHROPIC_API_KEY") else "offline fallback (no ANTHROPIC_API_KEY)"
-        print(json.dumps({"mode": mode, "knowledge_chat": "http://127.0.0.1:8001/", "inbox_review": "http://127.0.0.1:8002/", "scope_builder": "http://127.0.0.1:8003/", "api_docs": "http://127.0.0.1:8001/docs"}, indent=2))
+        ai = {}
+        for name, port in PORTS.items():  # each service reports which AI provider chain it is really using
+            try:
+                with urllib.request.urlopen(f"http://127.0.0.1:{port}/health", timeout=3) as r:
+                    h = json.load(r)
+                ai[name] = h.get("llm", "?") + (f"  [{'; '.join(h['llm_notes'])}]" if h.get("llm_notes") else "")
+            except Exception:  # noqa: BLE001
+                ai[name] = "unknown"
+        print(json.dumps({"ai_provider_chain": ai, "knowledge_chat": "http://127.0.0.1:8001/", "inbox_review": "http://127.0.0.1:8002/", "scope_builder": "http://127.0.0.1:8003/", "api_docs": "http://127.0.0.1:8001/docs"}, indent=2))
         print("Ctrl-C to stop.")
         while all(p.poll() is None for p in procs):
             time.sleep(1)

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 import uuid
 from datetime import datetime, timezone
@@ -18,7 +19,9 @@ from .store import Store, now
 INJECTION_IN_QUESTION = re.compile(r"(ignore (all |any )?(previous|prior|above)|system prompt|reveal your (instructions|prompt)|you are now)", re.I)
 UNKNOWN_TERM_LIMIT = 0.3  # fraction of unseen query terms at/above which we abstain
 
-EVAL_ADDITIONS =Path(__file__).resolve().parent.parent / "evaluation" / "escalated_questions.jsonl"
+def eval_additions_path() -> Path:
+    """Where resolved expert questions are appended as future test cases. KB_ESCALATION_LOG overrides it (the tests use a temp file)."""
+    return Path(os.environ.get("KB_ESCALATION_LOG") or Path(__file__).resolve().parent.parent / "evaluation" / "escalated_questions.jsonl")
 
 
 class KnowledgeService:
@@ -121,7 +124,8 @@ class KnowledgeService:
         if body.approve_for_retrieval:
             self.store.bump_version()
         # the original question becomes a regression case
-        EVAL_ADDITIONS.parent.mkdir(parents=True, exist_ok=True)
-        with EVAL_ADDITIONS.open("a", encoding="utf-8") as f:
+        target = eval_additions_path()
+        target.parent.mkdir(parents=True, exist_ok=True)
+        with target.open("a", encoding="utf-8") as f:
             f.write(json.dumps({"question": rows[0]["question"], "expected_answer": body.answer, "source": f"escalation:{esc_id}"}) + "\n")
         return {"record_id": rec_id, "version": prev + 1, "approved": body.approve_for_retrieval}

@@ -83,7 +83,7 @@ export async function classify(email: EmailInput, llm: Llm, model: string): Prom
     const flags = new Set<Flag>([...c.flags, ...base.flags.filter((f) => f === "security" || f === "legal" || f === "injection_attempt")]);
     let risk = c.risk;
     if (flags.has("security") || flags.has("legal") || flags.has("injection_attempt")) risk = "high";
-    return { classification: { ...c, flags: [...flags], risk }, by: `llm:${model}`, tokens: { in: r.inputTokens, out: r.outputTokens }, latencyMs: r.latencyMs };
+    return { classification: { ...c, flags: [...flags], risk }, by: `llm:${r.model}`, tokens: { in: r.inputTokens, out: r.outputTokens }, latencyMs: r.latencyMs };
   } catch {
     return { classification: base, by: "offline-rules(fallback)" };
   }

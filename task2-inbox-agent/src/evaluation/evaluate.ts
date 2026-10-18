@@ -77,8 +77,15 @@ export interface EvalSummary {
 }
 
 /** Run every email through a FRESH in-memory agent (no state leaks between runs). */
-export async function evaluate(cfg: Config, emails: EvalEmail[], opts: { label: string; rule?: StyleRule; kbUrl?: string; classifyModel?: string; draftModel?: string; noLlm?: boolean }): Promise<{ rows: EvalRow[]; summary: EvalSummary }> {
-  const c: Config = { ...cfg, kbUrl: opts.kbUrl ?? cfg.kbUrl, classifyModel: opts.classifyModel ?? cfg.classifyModel, draftModel: opts.draftModel ?? cfg.draftModel, anthropicKey: opts.noLlm ? "" : cfg.anthropicKey };
+export async function evaluate(cfg: Config, emails: EvalEmail[], opts: { label: string; rule?: StyleRule; kbUrl?: string; classifyModel?: string; draftModel?: string; noLlm?: boolean; provider?: string; model?: string }): Promise<{ rows: EvalRow[]; summary: EvalSummary }> {
+  const c: Config = { ...cfg, kbUrl: opts.kbUrl ?? cfg.kbUrl, classifyModel: opts.classifyModel ?? cfg.classifyModel, draftModel: opts.draftModel ?? cfg.draftModel };
+  if (opts.noLlm) Object.assign(c, { llmProvider: "offline" });          // no AI at all: the deterministic baseline
+  if (opts.provider && opts.model) {                                      // pin exactly one provider+model, no fallback (for fair comparison)
+    Object.assign(c, { llmProvider: opts.provider, llmFallback: "none" });
+    if (opts.provider === "claude") Object.assign(c, { classifyModel: opts.model, draftModel: opts.model });
+    if (opts.provider === "groq") Object.assign(c, { groqModel: opts.model });
+    if (opts.provider === "gemini") Object.assign(c, { geminiModel: opts.model });
+  }
   const db = new InboxDb(":memory:");
   const kb = new KnowledgeClient({ baseUrl: c.kbUrl, apiKey: c.kbApiKey, timeoutMs: c.kbTimeoutMs, retries: 1, breakerThreshold: 1000 });
   const agent = new InboxAgent(c, db, kb, new Llm(c));
@@ -145,7 +152,7 @@ export async function evaluate(cfg: Config, emails: EvalEmail[], opts: { label: 
   }
 
   // cost: only when pricing is supplied for the model id; otherwise left blank (never guessed)
-  const p = pricing[cfg.draftModel];
+  const p = pricing[opts.label]; // pricing.json is keyed by the run label, e.g. "groq:llama-3.3-70b-versatile"
   const tin = rows.reduce((s, r) => s + r.tokens_in, 0);
   const tout = rows.reduce((s, r) => s + r.tokens_out, 0);
   const lat = rows.map((r) => r.latency_ms);
@@ -164,7 +171,7 @@ export async function evaluate(cfg: Config, emails: EvalEmail[], opts: { label: 
     avg_reply_chars: Math.round(rows.reduce((s, r) => s + r.reply_chars, 0) / Math.max(1, rows.length)),
     tokens_in: tin,
     tokens_out: tout,
-    cost_usd: !opts.noLlm && cfg.anthropicKey && p ? Math.round(((tin * p.in_per_mtok + tout * p.out_per_mtok) / 1e6) * 10000) / 10000 : null,
+    cost_usd: !opts.noLlm && p ? Math.round(((tin * p.in_per_mtok + tout * p.out_per_mtok) / 1e6) * 10000) / 10000 : null,
     confusion,
   };
   return { rows, summary };

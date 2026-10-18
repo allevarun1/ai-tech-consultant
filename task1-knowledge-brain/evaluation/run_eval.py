@@ -1,7 +1,7 @@
 """Task 1 evaluation. Usage (from task1-knowledge-brain/):
 
     python -m evaluation.run_eval                     # retrieval modes + end-to-end with the configured LLM
-    python -m evaluation.run_eval --models claude-haiku-5-5 claude-sonnet-5-5   # model comparison (needs ANTHROPIC_API_KEY)
+    python -m evaluation.run_eval --models claude:claude-haiku-5-5 claude:claude-sonnet-5-5 groq:llama-3.3-70b-versatile   # needs the matching API keys
 
 Writes evaluation/results/knowledge_<label>.csv (one row per case) and results/summary.json.
 Nothing here is pre-filled: every number comes from a run. Cost is only computed when
@@ -13,6 +13,7 @@ import argparse
 import csv
 import dataclasses
 import json
+import re
 import statistics
 import time
 from pathlib import Path
@@ -89,9 +90,21 @@ def e2e_eval(svc: KnowledgeService, cases: list[dict], label: str, pricing: dict
     return rows, summary
 
 
+def config_for(s, spec: str):
+    """'claude-haiku-5-5' or 'claude:claude-haiku-5-5' | 'groq:<model>' | 'gemini:<model>' -> a Settings that uses exactly that model, with no fallback."""
+    provider, _, model = spec.partition(":") if ":" in spec else ("claude", "", spec)
+    if provider == "claude":
+        return dataclasses.replace(s, answer_model=model, llm_provider="claude", llm_fallback="none")
+    if provider == "groq":
+        return dataclasses.replace(s, groq_model=model, llm_provider="groq", llm_fallback="none")
+    if provider == "gemini":
+        return dataclasses.replace(s, gemini_model=model, llm_provider="gemini", llm_fallback="none")
+    raise SystemExit(f"unknown provider in '{spec}' (use claude:, groq: or gemini:)")
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--models", nargs="*", default=None, help="Claude model ids to compare; default = whatever KB_LLM_PROVIDER resolves to")
+    ap.add_argument("--models", nargs="*", default=None, help="models to compare, as provider:model (e.g. claude:claude-haiku-5-5 groq:llama-3.3-70b-versatile); plain names mean Claude. Default = the configured LLM_PROVIDER chain")
     args = ap.parse_args()
     s = get_settings()
     store = Store(s.db_path)
@@ -107,11 +120,22 @@ def main() -> None:
     runs = [None] if not args.models else args.models
     summary["end_to_end"] = []
     for m in runs:
-        cfg = s if m is None else dataclasses.replace(s, answer_model=m, llm_provider="claude")
+        cfg = s if m is None else config_for(s, m)
         llm = LLM(cfg)
         label = llm.name
         rows, sm = e2e_eval(KnowledgeService(cfg, store, llm), cases, label, pricing)
-        safe = label.replace(":", "_").replace("/", "_")
+        # tokens and (when prices are supplied) cost, summed over the providers that actually answered
+        tin = sum(u["input_tokens"] for u in llm.chain.usage.values())
+        tout = sum(u["output_tokens"] for u in llm.chain.usage.values())
+        sm["tokens"] = {"input": tin, "output": tout}
+        sm["provider_usage"] = llm.chain.usage
+        price = pricing.get(label)
+        if price:
+            sm["cost_usd"] = round((tin * price["in_per_mtok"] + tout * price["out_per_mtok"]) / 1e6, 4)
+            sm["cost_note"] = "computed from pricing.json"
+        elif tin or tout:
+            sm["cost_note"] = f"tokens recorded; add an entry '{label}' to evaluation/pricing.json (in_per_mtok, out_per_mtok) to compute cost"
+        safe = re.sub(r"[^A-Za-z0-9._+-]", "_", label)
         with (RESULTS / f"knowledge_{safe}.csv").open("w", newline="", encoding="utf-8") as f:
             w = csv.DictWriter(f, FIELDS)
             w.writeheader()
